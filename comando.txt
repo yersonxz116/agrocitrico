@@ -1,0 +1,5 @@
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+
+
+se crea un .env y se pone ejemplo:
+FERNET_KEY=key_generada

@@ -1,0 +1,124 @@
+{# templates/login_pem.html #}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login con PEM — AgroCítrico</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+</head>
+<body>
+
+<div class="auth-layout">
+
+    <aside class="auth-brand" aria-hidden="true">
+        <img
+            src="{{ url_for('static', filename='img/agrocitrico_logo.svg') }}"
+            alt="AgroCítrico"
+            class="auth-brand-logo"
+        >
+
+        <div class="auth-brand-body">
+            <p class="auth-brand-eyebrow">Autenticación con llave</p>
+            <h2 class="auth-brand-headline">
+                Tu archivo PEM<br>es tu llave<br><em>de acceso.</em>
+            </h2>
+            <p class="auth-brand-desc">
+                Selecciona el archivo .pem que descargaste al configurar tu cuenta.
+                No necesitas contraseña ni código TOTP.
+            </p>
+        </div>
+
+        <div class="auth-brand-stats">
+            <div>
+                <strong>RSA</strong>
+                <span>Criptografía asimétrica</span>
+            </div>
+            <div>
+                <strong>2048</strong>
+                <span>Bits de seguridad</span>
+            </div>
+            <div>
+                <strong>SHA-256</strong>
+                <span>Verificación de huella</span>
+            </div>
+        </div>
+    </aside>
+
+    <main class="auth-form-panel">
+        <div class="auth-form-box">
+
+            <a class="auth-back" href="{{ url_for('login') }}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+                Ingresar con contraseña
+            </a>
+
+            <header class="auth-form-header">
+                <p class="auth-form-eyebrow">Acceso con llave privada</p>
+                <h1 class="auth-form-title">Login con archivo PEM</h1>
+                <p class="auth-form-subtitle">Sube tu archivo de llave privada para acceder sin contraseña.</p>
+            </header>
+
+            <form class="auth-form" novalidate action="{{ url_for('login_pem') }}" method="post" enctype="multipart/form-data">
+
+                <div class="form-group">
+                    <label class="form-label" for="email">Correo electrónico</label>
+                    <input
+                        class="form-input{% if errors.get('email') %} is-error{% endif %}"
+                        type="email"
+                        id="email"
+                        name="email"
+                        value="{{ form.email }}"
+                        placeholder="tu@correo.com"
+                        autocomplete="email"
+                        required
+                    >
+                    <span class="form-error{% if errors.get('email') %} is-visible{% endif %}" id="email-error" role="alert">
+                        {{ errors.get('email', 'Ingresa un correo electrónico válido') }}
+                    </span>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="pem_file">Archivo PEM</label>
+                    <div class="mfa-file-input-wrapper">
+                        <input
+                            class="mfa-file-input{% if errors.get('pem_file') %} is-error{% endif %}"
+                            type="file"
+                            id="pem_file"
+                            name="pem_file"
+                            accept=".pem"
+                            required
+                        >
+                        <div class="mfa-file-label" id="file-label">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+                            <span class="mfa-file-text">Seleccionar archivo .pem</span>
+                            <span class="mfa-file-hint">o arrastra aquí</span>
+                        </div>
+                    </div>
+                    <span class="form-error{% if errors.get('pem_file') %} is-visible{% endif %}" id="pem-error" role="alert">
+                        {{ errors.get('pem_file', 'Selecciona tu archivo .pem') }}
+                    </span>
+                </div>
+
+                <button class="auth-submit" type="submit">
+                    Ingresar con llave
+                </button>
+
+            </form>
+
+            <p class="auth-redirect">
+                ¿No tienes tu archivo PEM?
+                <a href="{{ url_for('login') }}">Ingresa con contraseña</a>
+            </p>
+
+        </div>
+    </main>
+
+</div>
+
+<script src="{{ url_for('static', filename='js/mfa.js') }}" defer></script>
+</body>
+</html>

@@ -1,0 +1,122 @@
+{# templates/mfa_setup_complete.html #}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MFA configurado — AgroCítrico</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+</head>
+<body>
+
+<div class="auth-layout">
+
+    <aside class="auth-brand" aria-hidden="true">
+        <img
+            src="{{ url_for('static', filename='img/agrocitrico_logo.svg') }}"
+            alt="AgroCítrico"
+            class="auth-brand-logo"
+        >
+
+        <div class="auth-brand-body">
+            <p class="auth-brand-eyebrow">Configuración completa</p>
+            <h2 class="auth-brand-headline">
+                Tu cuenta<br>está protegida<br><em>al máximo.</em>
+            </h2>
+            <p class="auth-brand-desc">
+                Guarda tus códigos de respaldo y tu archivo PEM en un lugar seguro.
+                No podrás volver a verlos.
+            </p>
+        </div>
+
+        <div class="auth-brand-stats">
+            <div>
+                <strong>2</strong>
+                <span>Paso 2 de 2</span>
+            </div>
+            <div>
+                <strong>10</strong>
+                <span>Códigos de respaldo</span>
+            </div>
+            <div>
+                <strong>RSA</strong>
+                <span>Llave PEM generada</span>
+            </div>
+        </div>
+    </aside>
+
+    <main class="auth-form-panel">
+        <div class="auth-form-box mfa-complete-box">
+
+            <header class="auth-form-header">
+                <p class="auth-form-eyebrow">Paso 2 — Respaldos</p>
+                <h1 class="auth-form-title">Guarda tus respaldos</h1>
+                <p class="auth-form-subtitle">Estos elementos no se pueden recuperar después. Guárdalos en un lugar seguro.</p>
+            </header>
+
+            <!-- Backup Codes -->
+            <div class="mfa-section">
+                <div class="mfa-section-header">
+                    <h2 class="mfa-section-title">Códigos de respaldo</h2>
+                    <button type="button" class="mfa-copy-btn" id="copy-all-codes" aria-label="Copiar todos los códigos">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                        <span>Copiar</span>
+                    </button>
+                </div>
+                <div class="mfa-codes-grid" id="backup-codes">
+                    {% for code in backup_codes %}
+                    <div class="mfa-code-item">{{ code }}</div>
+                    {% endfor %}
+                </div>
+                <p class="mfa-hint">Cada código solo puede usarse una vez. Guárdalos en un lugar seguro.</p>
+            </div>
+
+            <div class="auth-divider">
+                <span>Archivo PEM</span>
+            </div>
+
+            <!-- PEM Key -->
+            <div class="mfa-section">
+                <div class="mfa-section-header">
+                    <h2 class="mfa-section-title">Llave de autenticación</h2>
+                </div>
+                <div class="mfa-warning">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    <p>Este archivo PEM te permite iniciar sesión sin contraseña ni código TOTP. <strong>No lo compartas con nadie.</strong></p>
+                </div>
+                <a href="{{ url_for('mfa_download_pem') }}" class="mfa-download-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Descargar agrocitrico_key.pem
+                </a>
+                <p class="mfa-hint">Con este archivo podrás iniciar sesión directamente desde la pantalla de login.</p>
+            </div>
+
+            <div class="auth-divider">
+                <span>Finalizar</span>
+            </div>
+
+            <!-- Confirm -->
+            <form class="auth-form" action="{{ url_for('mfa_setup_finish') }}" method="post">
+                <div class="mfa-confirm-check">
+                    <label class="mfa-checkbox-label">
+                        <input type="checkbox" id="confirm-saved" required>
+                        <span>He guardado mis códigos de respaldo y mi archivo PEM en un lugar seguro.</span>
+                    </label>
+                </div>
+
+                <button class="auth-submit" type="submit" id="finish-btn" disabled>
+                    Finalizar configuración
+                </button>
+            </form>
+
+        </div>
+    </main>
+
+</div>
+
+<script src="{{ url_for('static', filename='js/mfa.js') }}" defer></script>
+</body>
+</html>
