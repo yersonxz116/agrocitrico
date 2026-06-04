@@ -28,6 +28,15 @@
                 <span class="sidebar-link-icon"><i data-lucide="layout-dashboard"></i></span>
                 <span>Panel</span>
             </a>
+            <p class="sidebar-section-label">Gestión</p>
+            <a class="sidebar-link" href="{{ url_for('actividades') }}">
+                <span class="sidebar-link-icon"><i data-lucide="clipboard-list"></i></span>
+                <span>Actividades</span>
+            </a>
+            <a class="sidebar-link" href="{{ url_for('cosechas') }}">
+                <span class="sidebar-link-icon"><i data-lucide="wheat"></i></span>
+                <span>Cosechas</span>
+            </a>
             <p class="sidebar-section-label">General</p>
             <a class="sidebar-link" href="{{ url_for('index') }}">
                 <span class="sidebar-link-icon"><i data-lucide="globe"></i></span>
@@ -74,25 +83,38 @@
 
             <!-- Stats -->
             <section class="stats-row" aria-label="Indicadores principales">
-                {% for item in stats %}
-                <article class="stat-card
-                    {% if loop.index == 1 %}stat-green
-                    {% elif loop.index == 2 %}stat-red
-                    {% elif loop.index == 3 %}stat-blue
-                    {% else %}stat-amber{% endif %}">
-                    <div class="stat-icon" aria-hidden="true">
-                        {% if loop.index == 1 %}<i data-lucide="sprout"></i>
-                        {% elif loop.index == 2 %}<i data-lucide="alert-triangle"></i>
-                        {% elif loop.index == 3 %}<i data-lucide="droplets"></i>
-                        {% else %}<i data-lucide="wheat"></i>{% endif %}
-                    </div>
+                <article class="stat-card stat-green">
+                    <div class="stat-icon" aria-hidden="true"><i data-lucide="clipboard-list"></i></div>
                     <div class="stat-body">
-                        <p class="stat-label">{{ item.label }}</p>
-                        <p class="stat-value">{{ item.value }}</p>
-                        <p class="stat-detail">{{ item.detail }}</p>
+                        <p class="stat-label">Actividades registradas</p>
+                        <p class="stat-value">{{ total_actividades }}</p>
+                        <p class="stat-detail">Total en el cultivo</p>
                     </div>
                 </article>
-                {% endfor %}
+                <article class="stat-card stat-red">
+                    <div class="stat-icon" aria-hidden="true"><i data-lucide="bell"></i></div>
+                    <div class="stat-body">
+                        <p class="stat-label">Alertas pendientes</p>
+                        <p class="stat-value">{{ total_alertas }}</p>
+                        <p class="stat-detail">Hoy y mañana</p>
+                    </div>
+                </article>
+                <article class="stat-card stat-blue">
+                    <div class="stat-icon" aria-hidden="true"><i data-lucide="droplets"></i></div>
+                    <div class="stat-body">
+                        <p class="stat-label">Humedad suelo</p>
+                        <p class="stat-value">68%</p>
+                        <p class="stat-detail">Lectura estable</p>
+                    </div>
+                </article>
+                <article class="stat-card stat-amber">
+                    <div class="stat-icon" aria-hidden="true"><i data-lucide="wheat"></i></div>
+                    <div class="stat-body">
+                        <p class="stat-label">Última cosecha</p>
+                        <p class="stat-value">{% if ultima_cosecha %}{{ ultima_cosecha.cantidad_kg }} kg{% else %}—{% endif %}</p>
+                        <p class="stat-detail">{% if ultima_cosecha %}{{ ultima_cosecha.fecha.strftime('%d/%m/%Y') }}{% else %}Sin registros{% endif %}</p>
+                    </div>
+                </article>
             </section>
 
             <!-- Grid de contenido -->
@@ -117,32 +139,54 @@
                          class="crop-img">
                 </article>
 
-                <!-- Agenda de labores -->
+                <!-- Alertas reales -->
                 <article class="card tasks-card">
                     <div class="card-header">
-                        <h2><i data-lucide="calendar-check"></i> Agenda de labores</h2>
+                        <h2><i data-lucide="bell"></i> Alertas de actividades</h2>
+                        <a href="{{ url_for('actividades') }}" style="font-size:.8rem;color:var(--ac-green);text-decoration:none;">Ver todas →</a>
                     </div>
                     <ul class="task-list">
-                        {% for task in tasks %}
+                        {% for act in alertas_hoy %}
                         <li class="task-item">
-                            <div class="task-icon-wrap task-icon-{% if loop.index == 1 %}red{% elif loop.index == 2 %}amber{% else %}green{% endif %}" aria-hidden="true">
-                                {% if loop.index == 1 %}<i data-lucide="droplets"></i>
-                                {% elif loop.index == 2 %}<i data-lucide="search"></i>
-                                {% else %}<i data-lucide="leaf"></i>{% endif %}
-                            </div>
+                            <div class="task-icon-wrap task-icon-red" aria-hidden="true"><i data-lucide="alert-circle"></i></div>
                             <div class="task-body">
-                                <p class="task-name">{{ task.name }}</p>
-                                <p class="task-date">
-                                    <i data-lucide="clock"></i>
-                                    {{ task.date }}
-                                </p>
+                                <p class="task-name">{{ act.tipo }}</p>
+                                <p class="task-date"><i data-lucide="clock"></i> Hoy</p>
                             </div>
-                            <span class="task-badge task-badge-{% if loop.index == 1 %}red{% elif loop.index == 2 %}amber{% else %}blue{% endif %}">
-                                {{ task.status }}
-                            </span>
+                            <span class="task-badge task-badge-red">Hoy</span>
                         </li>
                         {% endfor %}
+                        {% for act in alertas_manana %}
+                        <li class="task-item">
+                            <div class="task-icon-wrap task-icon-amber" aria-hidden="true"><i data-lucide="clock"></i></div>
+                            <div class="task-body">
+                                <p class="task-name">{{ act.tipo }}</p>
+                                <p class="task-date"><i data-lucide="clock"></i> Mañana</p>
+                            </div>
+                            <span class="task-badge task-badge-amber">Mañana</span>
+                        </li>
+                        {% endfor %}
+                        {% for act in alertas_proximas %}
+                        <li class="task-item">
+                            <div class="task-icon-wrap task-icon-green" aria-hidden="true"><i data-lucide="calendar"></i></div>
+                            <div class="task-body">
+                                <p class="task-name">{{ act.tipo }}</p>
+                                <p class="task-date"><i data-lucide="clock"></i> {{ act.proxima_fecha.strftime('%d/%m/%Y') }}</p>
+                            </div>
+                            <span class="task-badge task-badge-blue">Próximo</span>
+                        </li>
+                        {% endfor %}
+                        {% if not alertas_hoy and not alertas_manana and not alertas_proximas %}
+                        <li style="padding:1.5rem;text-align:center;color:#888;font-size:.9rem;">
+                            <i data-lucide="check-circle"></i> Sin alertas esta semana
+                        </li>
+                        {% endif %}
                     </ul>
+                    <div style="padding:.75rem 1rem;border-top:1px solid #f0f0f0;">
+                        <a href="{{ url_for('actividad_nueva') }}" class="btn-agregar">
+                            <i data-lucide="plus"></i> Registrar actividad
+                        </a>
+                    </div>
                 </article>
 
                 <!-- Sensores IoT -->

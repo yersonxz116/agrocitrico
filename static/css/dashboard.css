@@ -954,3 +954,19 @@ ul, ol { list-style: none; }
         transition: none;
     }
 }
+
+/* ── Botón agregar en tarjetas ── */
+.btn-agregar {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    background: #2d7a2d;
+    color: #fff;
+    padding: .45rem 1rem;
+    border-radius: .55rem;
+    text-decoration: none;
+    font-size: .82rem;
+    font-weight: 600;
+    transition: background .15s;
+}
+.btn-agregar:hover { background: #245f24; }

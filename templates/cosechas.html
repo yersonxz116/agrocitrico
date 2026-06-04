@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cosechas — AgroCítrico</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <style>
+        .page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;}
+        .page-title{font-size:1.4rem;font-weight:700;color:#1a2e1a;}
+        .btn-primary{display:inline-flex;align-items:center;gap:.4rem;background:#2d7a2d;color:#fff;padding:.55rem 1.1rem;border-radius:.6rem;text-decoration:none;font-size:.875rem;font-weight:600;border:none;cursor:pointer;}
+        .btn-primary:hover{background:#245f24;}
+        .btn-danger{background:#dc2626;color:#fff;padding:.4rem .8rem;border-radius:.5rem;border:none;cursor:pointer;font-size:.8rem;}
+        .btn-danger:hover{background:#b91c1c;}
+        .tabla{width:100%;border-collapse:collapse;background:#fff;border-radius:.75rem;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.07);}
+        .tabla th{background:#f0f7f0;color:#2d7a2d;font-size:.8rem;font-weight:700;text-transform:uppercase;padding:.75rem 1rem;text-align:left;}
+        .tabla td{padding:.75rem 1rem;border-top:1px solid #f3f4f6;font-size:.875rem;color:#374151;}
+        .tabla tr:hover td{background:#f9fafb;}
+        .total-badge{background:#dcfce7;color:#166534;padding:.5rem 1.2rem;border-radius:.6rem;font-weight:700;font-size:.95rem;display:inline-block;margin-bottom:1rem;}
+        .empty{text-align:center;padding:3rem;color:#888;}
+    </style>
+</head>
+<body>
+<div class="dash-shell">
+    <aside class="dash-sidebar">
+        <div class="sidebar-top">
+            <a class="sidebar-brand" href="{{ url_for('dashboard') }}">
+                <img src="{{ url_for('static', filename='img/agrocitrico_logo.svg') }}" alt="AgroCítrico">
+            </a>
+        </div>
+        <nav class="sidebar-nav">
+            <p class="sidebar-section-label">Principal</p>
+            <a class="sidebar-link" href="{{ url_for('dashboard') }}">
+                <span class="sidebar-link-icon"><i data-lucide="layout-dashboard"></i></span><span>Panel</span>
+            </a>
+            <p class="sidebar-section-label">Gestión</p>
+            <a class="sidebar-link" href="{{ url_for('actividades') }}">
+                <span class="sidebar-link-icon"><i data-lucide="clipboard-list"></i></span><span>Actividades</span>
+            </a>
+            <a class="sidebar-link is-active" href="{{ url_for('cosechas') }}">
+                <span class="sidebar-link-icon"><i data-lucide="wheat"></i></span><span>Cosechas</span>
+            </a>
+            <p class="sidebar-section-label">General</p>
+            <a class="sidebar-link" href="{{ url_for('index') }}">
+                <span class="sidebar-link-icon"><i data-lucide="globe"></i></span><span>Sitio web</span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                <div class="sidebar-avatar">{{ user.fullname[0].upper() }}</div>
+                <div class="sidebar-user-info">
+                    <p class="sidebar-user-name">{{ user.fullname }}</p>
+                    <p class="sidebar-user-role">Agricultor</p>
+                </div>
+            </div>
+            <form action="{{ url_for('logout') }}" method="post">
+                <button class="sidebar-logout" type="submit"><i data-lucide="log-out"></i></button>
+            </form>
+        </div>
+    </aside>
+
+    <div class="dash-body">
+        <header class="dash-topbar">
+            <div class="topbar-greeting">
+                <h1><i data-lucide="wheat" style="vertical-align:middle;margin-right:.4rem;"></i> Registro de cosechas</h1>
+            </div>
+        </header>
+        <main class="dash-main">
+            <div class="page-header">
+                <div>
+                    <p class="page-title">Historial de cosechas</p>
+                    {% if total_kg > 0 %}
+                    <span class="total-badge">📦 Total acumulado: {{ "%.2f"|format(total_kg) }} kg</span>
+                    {% endif %}
+                </div>
+                <a href="{{ url_for('cosecha_nueva') }}" class="btn-primary">
+                    <i data-lucide="plus"></i> Nueva cosecha
+                </a>
+            </div>
+
+            {% if cosechas %}
+            <table class="tabla">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Cantidad (kg)</th>
+                        <th>Notas</th>
+                        <th>Registrada</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for cos in cosechas %}
+                    <tr>
+                        <td><strong>{{ cos.fecha.strftime('%d/%m/%Y') }}</strong></td>
+                        <td style="font-size:1.05rem;font-weight:600;color:#2d7a2d;">{{ cos.cantidad_kg }} kg</td>
+                        <td style="color:#6b7280;font-size:.82rem;">{{ cos.notas or '—' }}</td>
+                        <td style="color:#9ca3af;font-size:.8rem;">{{ cos.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                        <td>
+                            <form action="{{ url_for('cosecha_eliminar', cos_id=cos.id) }}" method="post" onsubmit="return confirm('¿Eliminar este registro de cosecha?');">
+                                <button class="btn-danger" type="submit"><i data-lucide="trash-2" style="width:14px;height:14px;"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty">
+                <p style="font-size:2rem;">🍋</p>
+                <p>No hay cosechas registradas aún.</p>
+                <a href="{{ url_for('cosecha_nueva') }}" class="btn-primary" style="margin-top:1rem;display:inline-flex;">Registrar primera cosecha</a>
+            </div>
+            {% endif %}
+        </main>
+    </div>
+</div>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script>lucide.createIcons();</script>
+</body>
+</html>

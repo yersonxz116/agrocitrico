@@ -88,7 +88,7 @@ SETUP_ENDPOINTS = {
     "mfa_download_pem",
     "mfa_setup_finish",
 }
-PROTECTED_ENDPOINTS = {"dashboard"}
+PROTECTED_ENDPOINTS = {"dashboard", "actividades", "actividad_nueva", "actividad_eliminar", "cosechas", "cosecha_nueva", "cosecha_eliminar"}
 
 _setup_store = {}
 
@@ -196,6 +196,37 @@ class BackupCode(db.Model):
     code_hash = db.Column(db.String(255), nullable=False)
     used = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, nullable=False, server_default=db.func.now())
+
+
+TIPOS_ACTIVIDAD = ["Riego", "Fertilización", "Fumigación", "Poda", "Otra"]
+
+
+class Actividad(db.Model):
+    __tablename__ = "actividades"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    tipo = db.Column(db.String(50), nullable=False)
+    fecha_realizada = db.Column(db.Date, nullable=False)
+    intervalo_dias = db.Column(db.Integer, nullable=False, default=1)
+    proxima_fecha = db.Column(db.Date, nullable=False)
+    notas = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, server_default=db.func.now())
+
+    user = db.relationship("User", backref=db.backref("actividades", lazy="dynamic"))
+
+
+class Cosecha(db.Model):
+    __tablename__ = "cosechas"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    fecha = db.Column(db.Date, nullable=False)
+    cantidad_kg = db.Column(db.Numeric(10, 2), nullable=False)
+    notas = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, server_default=db.func.now())
+
+    user = db.relationship("User", backref=db.backref("cosechas", lazy="dynamic"))
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -578,31 +609,167 @@ def mfa_setup_finish():
 
 @app.route("/dashboard")
 def dashboard():
+    from datetime import date, timedelta
     user = g.current_user
-    stats = [
-        {"label": "Labores activas", "value": "3", "detail": "Riego, fertilizacion y fumigacion"},
-        {"label": "Alertas proximas", "value": "2", "detail": "Una labor vence hoy y otra manana"},
-        {"label": "Humedad suelo", "value": "68%", "detail": "Lectura estable para cultivo de limon"},
-        {"label": "Ultima cosecha", "value": "42 kg", "detail": "Registro de la semana actual"},
-    ]
-    tasks = [
-        {"name": "Riego por goteo", "date": "Hoy", "status": "Prioritario"},
-        {"name": "Revision de plagas", "date": "Manana", "status": "Pendiente"},
-        {"name": "Fertilizacion organica", "date": "En 4 dias", "status": "Programado"},
-    ]
+    hoy = date.today()
+    manana = hoy + timedelta(days=1)
+
+    # Actividades de hoy y mañana
+    alertas_hoy = Actividad.query.filter_by(user_id=user.id).filter(
+        Actividad.proxima_fecha == hoy
+    ).order_by(Actividad.tipo).all()
+
+    alertas_manana = Actividad.query.filter_by(user_id=user.id).filter(
+        Actividad.proxima_fecha == manana
+    ).order_by(Actividad.tipo).all()
+
+    alertas_proximas = Actividad.query.filter_by(user_id=user.id).filter(
+        Actividad.proxima_fecha > manana,
+        Actividad.proxima_fecha <= hoy + timedelta(days=7)
+    ).order_by(Actividad.proxima_fecha).all()
+
+    # Stats reales
+    total_actividades = Actividad.query.filter_by(user_id=user.id).count()
+    total_cosechas = Cosecha.query.filter_by(user_id=user.id).count()
+    ultima_cosecha = Cosecha.query.filter_by(user_id=user.id).order_by(Cosecha.fecha.desc()).first()
+    total_alertas = len(alertas_hoy) + len(alertas_manana)
+
     sensors = [
-        {"name": "Temperatura", "value": "27 C", "trend": "Rango adecuado"},
-        {"name": "Humedad ambiental", "value": "74%", "trend": "Alta por la manana"},
-        {"name": "Humedad del suelo", "value": "68%", "trend": "Sin riego urgente"},
+        {"name": "Temperatura",       "value": "27 °C", "trend": "Rango adecuado"},
+        {"name": "Humedad ambiental", "value": "74%",   "trend": "Alta por la mañana"},
+        {"name": "Humedad del suelo", "value": "68%",   "trend": "Sin riego urgente"},
     ]
 
     return render_template(
         "dashboard.html",
         user=user,
-        stats=stats,
-        tasks=tasks,
+        hoy=hoy,
+        manana=manana,
+        alertas_hoy=alertas_hoy,
+        alertas_manana=alertas_manana,
+        alertas_proximas=alertas_proximas,
+        total_actividades=total_actividades,
+        total_cosechas=total_cosechas,
+        ultima_cosecha=ultima_cosecha,
+        total_alertas=total_alertas,
         sensors=sensors,
     )
+
+
+# ── Actividades ───────────────────────────────────────────────────────────────
+
+@app.route("/actividades")
+def actividades():
+    from datetime import date, timedelta
+    user = g.current_user
+    hoy = date.today()
+    lista = Actividad.query.filter_by(user_id=user.id).order_by(Actividad.proxima_fecha).all()
+    return render_template("actividades.html", user=user, actividades=lista, hoy=hoy, tipos=TIPOS_ACTIVIDAD)
+
+
+@app.route("/actividades/nueva", methods=["GET", "POST"])
+def actividad_nueva():
+    from datetime import date, timedelta
+    user = g.current_user
+    error = None
+
+    if request.method == "POST":
+        tipo = request.form.get("tipo", "").strip()
+        fecha_str = request.form.get("fecha_realizada", "").strip()
+        intervalo_str = request.form.get("intervalo_dias", "1").strip()
+        notas = request.form.get("notas", "").strip()
+
+        if not tipo or tipo not in TIPOS_ACTIVIDAD:
+            error = "Selecciona un tipo de actividad válido."
+        elif not fecha_str:
+            error = "La fecha realizada es obligatoria."
+        else:
+            try:
+                fecha = date.fromisoformat(fecha_str)
+                intervalo = int(intervalo_str)
+                if intervalo < 1:
+                    raise ValueError
+                proxima = fecha + timedelta(days=intervalo)
+                act = Actividad(
+                    user_id=user.id,
+                    tipo=tipo,
+                    fecha_realizada=fecha,
+                    intervalo_dias=intervalo,
+                    proxima_fecha=proxima,
+                    notas=notas or None,
+                )
+                db.session.add(act)
+                db.session.commit()
+                return redirect(url_for("actividades"))
+            except ValueError:
+                error = "Fecha o intervalo inválido. El intervalo debe ser un número mayor a 0."
+
+    return render_template("actividad_form.html", user=user, error=error, tipos=TIPOS_ACTIVIDAD, hoy=date.today().isoformat())
+
+
+@app.route("/actividades/<int:act_id>/eliminar", methods=["POST"])
+def actividad_eliminar(act_id):
+    user = g.current_user
+    act = Actividad.query.filter_by(id=act_id, user_id=user.id).first_or_404()
+    db.session.delete(act)
+    db.session.commit()
+    return redirect(url_for("actividades"))
+
+
+# ── Cosechas ──────────────────────────────────────────────────────────────────
+
+@app.route("/cosechas")
+def cosechas():
+    from datetime import date
+    user = g.current_user
+    lista = Cosecha.query.filter_by(user_id=user.id).order_by(Cosecha.fecha.desc()).all()
+    total_kg = sum(float(c.cantidad_kg) for c in lista)
+    return render_template("cosechas.html", user=user, cosechas=lista, total_kg=total_kg, hoy=date.today())
+
+
+@app.route("/cosechas/nueva", methods=["GET", "POST"])
+def cosecha_nueva():
+    from datetime import date
+    user = g.current_user
+    error = None
+
+    if request.method == "POST":
+        fecha_str = request.form.get("fecha", "").strip()
+        cantidad_str = request.form.get("cantidad_kg", "").strip()
+        notas = request.form.get("notas", "").strip()
+
+        if not fecha_str:
+            error = "La fecha de cosecha es obligatoria."
+        elif not cantidad_str:
+            error = "La cantidad recolectada es obligatoria."
+        else:
+            try:
+                fecha = date.fromisoformat(fecha_str)
+                cantidad = float(cantidad_str)
+                if cantidad <= 0:
+                    raise ValueError
+                cos = Cosecha(
+                    user_id=user.id,
+                    fecha=fecha,
+                    cantidad_kg=cantidad,
+                    notas=notas or None,
+                )
+                db.session.add(cos)
+                db.session.commit()
+                return redirect(url_for("cosechas"))
+            except ValueError:
+                error = "Cantidad inválida. Debe ser un número mayor a 0."
+
+    return render_template("cosecha_form.html", user=user, error=error, hoy=date.today().isoformat())
+
+
+@app.route("/cosechas/<int:cos_id>/eliminar", methods=["POST"])
+def cosecha_eliminar(cos_id):
+    user = g.current_user
+    cos = Cosecha.query.filter_by(id=cos_id, user_id=user.id).first_or_404()
+    db.session.delete(cos)
+    db.session.commit()
+    return redirect(url_for("cosechas"))
 
 
 @app.route("/logout", methods=["POST"])

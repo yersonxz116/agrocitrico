@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nueva actividad — AgroCítrico</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <style>
+        .form-card{background:#fff;border-radius:.9rem;box-shadow:0 1px 6px rgba(0,0,0,.08);padding:2rem;max-width:540px;}
+        .form-group{margin-bottom:1.2rem;}
+        .form-label{display:block;font-size:.85rem;font-weight:600;color:#374151;margin-bottom:.4rem;}
+        .form-control{width:100%;padding:.6rem .85rem;border:1.5px solid #d1d5db;border-radius:.55rem;font-size:.9rem;font-family:inherit;box-sizing:border-box;transition:border .2s;}
+        .form-control:focus{outline:none;border-color:#2d7a2d;}
+        .form-hint{font-size:.78rem;color:#6b7280;margin-top:.3rem;}
+        .btn-primary{display:inline-flex;align-items:center;gap:.4rem;background:#2d7a2d;color:#fff;padding:.6rem 1.4rem;border-radius:.6rem;border:none;cursor:pointer;font-size:.9rem;font-weight:600;}
+        .btn-primary:hover{background:#245f24;}
+        .btn-secondary{display:inline-flex;align-items:center;gap:.4rem;background:#f3f4f6;color:#374151;padding:.6rem 1.2rem;border-radius:.6rem;border:none;cursor:pointer;font-size:.9rem;text-decoration:none;}
+        .alert-error{background:#fee2e2;color:#dc2626;padding:.75rem 1rem;border-radius:.55rem;margin-bottom:1rem;font-size:.875rem;}
+    </style>
+</head>
+<body>
+<div class="dash-shell">
+    <aside class="dash-sidebar">
+        <div class="sidebar-top">
+            <a class="sidebar-brand" href="{{ url_for('dashboard') }}">
+                <img src="{{ url_for('static', filename='img/agrocitrico_logo.svg') }}" alt="AgroCítrico">
+            </a>
+        </div>
+        <nav class="sidebar-nav">
+            <p class="sidebar-section-label">Principal</p>
+            <a class="sidebar-link" href="{{ url_for('dashboard') }}">
+                <span class="sidebar-link-icon"><i data-lucide="layout-dashboard"></i></span><span>Panel</span>
+            </a>
+            <p class="sidebar-section-label">Gestión</p>
+            <a class="sidebar-link is-active" href="{{ url_for('actividades') }}">
+                <span class="sidebar-link-icon"><i data-lucide="clipboard-list"></i></span><span>Actividades</span>
+            </a>
+            <a class="sidebar-link" href="{{ url_for('cosechas') }}">
+                <span class="sidebar-link-icon"><i data-lucide="wheat"></i></span><span>Cosechas</span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                <div class="sidebar-avatar">{{ user.fullname[0].upper() }}</div>
+                <div class="sidebar-user-info">
+                    <p class="sidebar-user-name">{{ user.fullname }}</p>
+                    <p class="sidebar-user-role">Agricultor</p>
+                </div>
+            </div>
+            <form action="{{ url_for('logout') }}" method="post">
+                <button class="sidebar-logout" type="submit"><i data-lucide="log-out"></i></button>
+            </form>
+        </div>
+    </aside>
+
+    <div class="dash-body">
+        <header class="dash-topbar">
+            <div class="topbar-greeting">
+                <h1><i data-lucide="plus-circle" style="vertical-align:middle;margin-right:.4rem;"></i> Registrar actividad</h1>
+            </div>
+        </header>
+        <main class="dash-main">
+            <div class="form-card">
+                {% if error %}
+                <div class="alert-error">⚠ {{ error }}</div>
+                {% endif %}
+
+                <form method="POST" action="{{ url_for('actividad_nueva') }}">
+                    <div class="form-group">
+                        <label class="form-label" for="tipo">Tipo de actividad *</label>
+                        <select name="tipo" id="tipo" class="form-control" required>
+                            <option value="">Selecciona un tipo...</option>
+                            {% for t in tipos %}
+                            <option value="{{ t }}">{{ t }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="fecha_realizada">Fecha realizada *</label>
+                        <input type="date" name="fecha_realizada" id="fecha_realizada" class="form-control" value="{{ hoy }}" max="{{ hoy }}" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="intervalo_dias">Repetir cada (días) *</label>
+                        <input type="number" name="intervalo_dias" id="intervalo_dias" class="form-control" min="1" value="7" required>
+                        <p class="form-hint">El sistema calculará automáticamente la próxima fecha.</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="notas">Notas (opcional)</label>
+                        <textarea name="notas" id="notas" class="form-control" rows="3" placeholder="Ej: Se aplicó con manguera, 30 litros..."></textarea>
+                    </div>
+
+                    <div style="display:flex;gap:.75rem;flex-wrap:wrap;">
+                        <button class="btn-primary" type="submit">
+                            <i data-lucide="save"></i> Guardar actividad
+                        </button>
+                        <a href="{{ url_for('actividades') }}" class="btn-secondary">
+                            <i data-lucide="x"></i> Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </main>
+    </div>
+</div>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script>lucide.createIcons();</script>
+</body>
+</html>
