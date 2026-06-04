@@ -917,10 +917,52 @@ ul, ol { list-style: none; }
 @media (max-width: 640px) {
     :root { --sidebar-w: 0px; }
 
-    .dash-sidebar { display: none; }
+    .dash-sidebar {
+        position: fixed;
+        top: 0; left: 0;
+        height: 100%;
+        width: 240px;
+        z-index: 1000;
+        transform: translateX(-100%);
+        transition: transform .25s ease;
+        box-shadow: 4px 0 20px rgba(0,0,0,.18);
+    }
+
+    .dash-sidebar.is-open {
+        transform: translateX(0);
+    }
+
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,.4);
+        z-index: 999;
+    }
+
+    .sidebar-overlay.is-open { display: block; }
 
     .dash-shell {
         grid-template-columns: 1fr;
+    }
+
+    .dash-topbar { padding: 14px 16px; }
+    .dash-main   { padding: 16px 14px 32px; }
+
+    /* Botón hamburger */
+    .topbar-hamburger {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        background: #f0f7f0;
+        border: none;
+        border-radius: .5rem;
+        cursor: pointer;
+        color: #2d7a2d;
+        margin-right: .75rem;
+        flex-shrink: 0;
     }
 
     .stats-row {
@@ -938,6 +980,9 @@ ul, ol { list-style: none; }
         align-items: flex-start;
     }
 }
+
+/* En desktop el hamburger no se muestra */
+.topbar-hamburger { display: none; }
 
 @media (max-width: 420px) {
     .stats-row {

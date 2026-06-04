@@ -23,6 +23,7 @@
     </style>
 </head>
 <body>
+<div id="js-overlay" class="sidebar-overlay"></div>
 <div class="dash-shell">
     <aside class="dash-sidebar">
         <div class="sidebar-top">
@@ -64,6 +65,7 @@
     <div class="dash-body">
         <header class="dash-topbar">
             <div class="topbar-greeting">
+                <button class="topbar-hamburger" id="js-hamburger" aria-label="Abrir menú"><i data-lucide="menu"></i></button>
                 <h1><i data-lucide="wheat" style="vertical-align:middle;margin-right:.4rem;"></i> Registro de cosechas</h1>
             </div>
         </header>
@@ -119,5 +121,8 @@
 </div>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <script>lucide.createIcons();</script>
+<script>
+const sidebar=document.querySelector(".dash-sidebar");const overlay=document.getElementById("js-overlay");const btn=document.getElementById("js-hamburger");function openSidebar(){sidebar.classList.add("is-open");overlay.classList.add("is-open");}function closeSidebar(){sidebar.classList.remove("is-open");overlay.classList.remove("is-open");}if(btn)btn.addEventListener("click",openSidebar);if(overlay)overlay.addEventListener("click",closeSidebar);
+</script>
 </body>
 </html>

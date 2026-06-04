@@ -12,6 +12,7 @@
 </head>
 <body>
 
+<div id="js-overlay" class="sidebar-overlay"></div>
 <div class="dash-shell">
 
     <!-- ── Sidebar ───────────────────────────────── -->
@@ -66,6 +67,9 @@
         <!-- Topbar -->
         <header class="dash-topbar">
             <div class="topbar-greeting">
+                <button class="topbar-hamburger" id="js-hamburger" aria-label="Abrir menú">
+                    <i data-lucide="menu"></i>
+                </button>
                 <p class="topbar-date" id="js-date"></p>
                 <h1>Hola, {{ user.fullname.split()[0] }} <span aria-hidden="true">👋</span></h1>
             </div>
@@ -254,5 +258,15 @@
 
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>
+<script>
+    // Sidebar drawer móvil
+    const sidebar = document.querySelector('.dash-sidebar');
+    const overlay = document.getElementById('js-overlay');
+    const btn = document.getElementById('js-hamburger');
+    function openSidebar()  { sidebar.classList.add('is-open'); overlay.classList.add('is-open'); }
+    function closeSidebar() { sidebar.classList.remove('is-open'); overlay.classList.remove('is-open'); }
+    if (btn) btn.addEventListener('click', openSidebar);
+    if (overlay) overlay.addEventListener('click', closeSidebar);
+</script>
 </body>
 </html>
