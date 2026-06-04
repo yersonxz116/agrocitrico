@@ -327,8 +327,7 @@ def login():
                     else:
                         session["user_id"] = user.id
                         session["user_name"] = user.fullname
-                        session["mfa_setup_required"] = True
-                        return redirect(url_for("mfa_setup"))
+                        return redirect(url_for("dashboard"))
 
     return render_template("login.html", errors=errors, form=form)
 
