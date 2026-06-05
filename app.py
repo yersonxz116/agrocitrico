@@ -5,6 +5,7 @@ import os
 import re
 import secrets
 import uuid
+from datetime import date, datetime, timedelta
 from threading import Lock
 from urllib.parse import quote_plus
 
@@ -90,7 +91,7 @@ SETUP_ENDPOINTS = {
     "mfa_download_pem",
     "mfa_setup_finish",
 }
-PROTECTED_ENDPOINTS = {"dashboard", "actividades", "actividad_nueva", "actividad_eliminar", "cosechas", "cosecha_nueva", "cosecha_eliminar"}
+PROTECTED_ENDPOINTS = {"dashboard", "actividades", "actividad_nueva", "actividad_eliminar", "cosechas", "cosecha_nueva", "cosecha_eliminar", "actualizar_meta"}
 
 _setup_store = {}
 
@@ -165,6 +166,7 @@ class User(db.Model):
     totp_secret = db.Column(db.String(255), nullable=True)
     pem_fingerprint = db.Column(db.String(64), nullable=True)
     pem_public_key = db.Column(db.Text, nullable=True)
+    meta_semanal = db.Column(db.Numeric(10, 2), nullable=False, default=58.0)
     created_at = db.Column(db.DateTime, nullable=False, server_default=db.func.now())
     updated_at = db.Column(
         db.DateTime,
@@ -229,6 +231,16 @@ class Cosecha(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, server_default=db.func.now())
 
     user = db.relationship("User", backref=db.backref("cosechas", lazy="dynamic"))
+
+
+class LecturaSensor(db.Model):
+    __tablename__ = "lecturas_sensor"
+
+    id = db.Column(db.Integer, primary_key=True)
+    temperatura = db.Column(db.Float, nullable=True)
+    humedad_aire = db.Column(db.Float, nullable=True)
+    humedad_suelo = db.Column(db.Float, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, server_default=db.func.now())
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -614,7 +626,6 @@ def mfa_setup_finish():
 
 @app.route("/dashboard")
 def dashboard():
-    from datetime import date, timedelta
     user = g.current_user
     hoy = date.today()
     manana = hoy + timedelta(days=1)
@@ -639,11 +650,46 @@ def dashboard():
     ultima_cosecha = Cosecha.query.filter_by(user_id=user.id).order_by(Cosecha.fecha.desc()).first()
     total_alertas = len(alertas_hoy) + len(alertas_manana)
 
-    sensors = [
-        {"name": "Temperatura",       "value": "27 °C", "trend": "Rango adecuado"},
-        {"name": "Humedad ambiental", "value": "74%",   "trend": "Alta por la mañana"},
-        {"name": "Humedad del suelo", "value": "68%",   "trend": "Sin riego urgente"},
-    ]
+    # Cosecha de la semana actual (de lunes a hoy)
+    lunes_semana = hoy - timedelta(days=hoy.weekday())
+    cosechas_semana = Cosecha.query.filter(
+        Cosecha.user_id == user.id,
+        Cosecha.fecha >= lunes_semana,
+        Cosecha.fecha <= hoy
+    ).all()
+    cosecha_semana_kg = sum(float(c.cantidad_kg) for c in cosechas_semana)
+    meta_semanal = float(user.meta_semanal)
+    porcentaje_cosecha = int((cosecha_semana_kg / meta_semanal) * 100) if meta_semanal > 0 else 0
+
+    ultima_lectura = LecturaSensor.query.order_by(LecturaSensor.created_at.desc()).first()
+
+    if ultima_lectura:
+        temp = ultima_lectura.temperatura
+        hum_aire = ultima_lectura.humedad_aire
+        hum_suelo = ultima_lectura.humedad_suelo
+        sensors = [
+            {
+                "name": "Temperatura",
+                "value": f"{temp:.1f} °C" if temp is not None else "Sin dato",
+                "trend": "Alta" if temp and temp > 35 else "Rango adecuado" if temp and temp >= 20 else "Baja" if temp is not None else "",
+            },
+            {
+                "name": "Humedad ambiental",
+                "value": f"{hum_aire:.0f}%" if hum_aire is not None else "Sin dato",
+                "trend": "Alta" if hum_aire and hum_aire > 80 else "Normal" if hum_aire and hum_aire >= 40 else "Baja" if hum_aire is not None else "",
+            },
+            {
+                "name": "Humedad del suelo",
+                "value": f"{hum_suelo:.0f}%" if hum_suelo is not None else "Sin dato",
+                "trend": "Riego urgente" if hum_suelo is not None and hum_suelo < 30 else "Sin riego urgente" if hum_suelo is not None else "",
+            },
+        ]
+    else:
+        sensors = [
+            {"name": "Temperatura",       "value": "Sin dato", "trend": "Esperando sensor"},
+            {"name": "Humedad ambiental", "value": "Sin dato", "trend": "Esperando sensor"},
+            {"name": "Humedad del suelo", "value": "Sin dato", "trend": "Esperando sensor"},
+        ]
 
     return render_template(
         "dashboard.html",
@@ -658,7 +704,25 @@ def dashboard():
         ultima_cosecha=ultima_cosecha,
         total_alertas=total_alertas,
         sensors=sensors,
+        cosecha_semana_kg=cosecha_semana_kg,
+        meta_semanal=meta_semanal,
+        porcentaje_cosecha=porcentaje_cosecha,
     )
+
+
+@app.post("/dashboard/actualizar-meta")
+def actualizar_meta():
+    user = g.current_user
+    meta_str = request.form.get("meta_semanal", "").strip()
+    try:
+        nueva_meta = float(meta_str)
+        if nueva_meta <= 0:
+            raise ValueError
+        user.meta_semanal = nueva_meta
+        db.session.commit()
+    except ValueError:
+        pass
+    return redirect(url_for("dashboard"))
 
 
 # ── Actividades ───────────────────────────────────────────────────────────────
@@ -777,6 +841,74 @@ def cosecha_eliminar(cos_id):
     return redirect(url_for("cosechas"))
 
 
+# ── API Sensores IoT ─────────────────────────────────────────────────────────
+
+SENSOR_TOKEN = os.environ.get("SENSOR_TOKEN", "agrocitrico-sensor-2026")
+
+
+@app.post("/api/sensores")
+def api_sensores():
+    token = request.headers.get("Authorization", "")
+    if token != f"Bearer {SENSOR_TOKEN}":
+        return jsonify({"error": "No autorizado"}), 401
+
+    data = request.get_json(silent=True) or {}
+    temperatura = data.get("temperatura")
+    humedad_aire = data.get("humedad_aire")
+    humedad_suelo = data.get("humedad_suelo")
+
+    if temperatura is None and humedad_aire is None and humedad_suelo is None:
+        return jsonify({"error": "No se recibieron datos"}), 400
+
+    lectura = LecturaSensor(
+        temperatura=temperatura,
+        humedad_aire=humedad_aire,
+        humedad_suelo=humedad_suelo,
+    )
+    db.session.add(lectura)
+    db.session.commit()
+
+    return jsonify({"ok": True, "id": lectura.id}), 201
+
+
+@app.get("/api/sensores/ultimo")
+def api_sensores_ultimo():
+    if not session.get("user_id"):
+        return jsonify({"error": "No autorizado"}), 401
+
+    lectura = LecturaSensor.query.order_by(LecturaSensor.created_at.desc()).first()
+    if not lectura:
+        return jsonify({
+            "temperatura": None,
+            "humedad_aire": None,
+            "humedad_suelo": None,
+            "trends": {
+                "temperatura": "Esperando sensor",
+                "humedad_aire": "Esperando sensor",
+                "humedad_suelo": "Esperando sensor"
+            }
+        })
+
+    temp = lectura.temperatura
+    hum_aire = lectura.humedad_aire
+    hum_suelo = lectura.humedad_suelo
+
+    trend_temp = "Alta" if temp and temp > 35 else "Rango adecuado" if temp and temp >= 20 else "Baja" if temp is not None else ""
+    trend_hum_aire = "Alta" if hum_aire and hum_aire > 80 else "Normal" if hum_aire and hum_aire >= 40 else "Baja" if hum_aire is not None else ""
+    trend_hum_suelo = "Riego urgente" if hum_suelo is not None and hum_suelo < 30 else "Sin riego urgente" if hum_suelo is not None else ""
+
+    return jsonify({
+        "temperatura": temp,
+        "humedad_aire": hum_aire,
+        "humedad_suelo": hum_suelo,
+        "trends": {
+            "temperatura": trend_temp,
+            "humedad_aire": trend_hum_aire,
+            "humedad_suelo": trend_hum_suelo
+        }
+    })
+
+
 @app.route("/logout", methods=["POST"])
 def logout():
     session.clear()
@@ -810,4 +942,4 @@ def ia_chat():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, host="0.0.0.0")

@@ -74,10 +74,14 @@
                 <h1>Hola, {{ user.fullname.split()[0] }} <span aria-hidden="true">👋</span></h1>
             </div>
             <div class="topbar-weather" aria-label="Estado del clima">
-                <span class="weather-icon"><i data-lucide="sun"></i></span>
+                <span id="js-weather-icon" class="weather-icon"><i data-lucide="sun"></i></span>
                 <div>
-                    <p class="weather-temp">27°C</p>
-                    <p class="weather-desc">Clima estable</p>
+                    <p id="js-weather-temp" class="weather-temp">
+                        {% if sensors[0].value != "Sin dato" %}{{ sensors[0].value }}{% else %}—{% endif %}
+                    </p>
+                    <p id="js-weather-desc" class="weather-desc">
+                        {% if sensors[0].value != "Sin dato" %}{{ sensors[0].trend }}{% else %}Esperando sensor{% endif %}
+                    </p>
                 </div>
             </div>
         </header>
@@ -107,8 +111,10 @@
                     <div class="stat-icon" aria-hidden="true"><i data-lucide="droplets"></i></div>
                     <div class="stat-body">
                         <p class="stat-label">Humedad suelo</p>
-                        <p class="stat-value">68%</p>
-                        <p class="stat-detail">Lectura estable</p>
+                        <p id="js-stat-hum-suelo" class="stat-value">
+                            {% if sensors[2].value != "Sin dato" %}{{ sensors[2].value }}{% else %}—{% endif %}
+                        </p>
+                        <p id="js-stat-hum-suelo-detail" class="stat-detail">{{ sensors[2].trend }}</p>
                     </div>
                 </article>
                 <article class="stat-card stat-amber">
@@ -211,9 +217,9 @@
                             </div>
                             <div class="sensor-body">
                                 <p class="sensor-name">{{ sensor.name }}</p>
-                                <p class="sensor-trend">{{ sensor.trend }}</p>
+                                <p id="sensor-trend-{{ loop.index0 }}" class="sensor-trend">{{ sensor.trend }}</p>
                             </div>
-                            <p class="sensor-value sensor-value-{% if loop.index == 1 %}amber{% elif loop.index == 2 %}blue{% else %}green{% endif %}">
+                            <p id="sensor-val-{{ loop.index0 }}" class="sensor-value sensor-value-{% if loop.index == 1 %}amber{% elif loop.index == 2 %}blue{% else %}green{% endif %}">
                                 {{ sensor.value }}
                             </p>
                         </li>
@@ -221,37 +227,70 @@
                     </ul>
                 </article>
 
-                <!-- Cosecha -->
+                <!-- Cosecha semanal -->
                 <article class="card harvest-card">
                     <div class="card-header">
                         <h2><i data-lucide="wheat"></i> Cosecha semanal</h2>
                         <span class="card-label">Semana actual</span>
                     </div>
                     <div class="harvest-body">
-                        <div class="harvest-ring-wrap" aria-label="72% de la meta completado">
+                        {% set visual_pct = [porcentaje_cosecha, 100]|min %}
+                        {% set dashoffset = 213.6 * (1 - visual_pct / 100) %}
+                        <div class="harvest-ring-wrap" aria-label="{{ porcentaje_cosecha }}% de la meta completado">
                             <svg class="harvest-ring" viewBox="0 0 80 80" aria-hidden="true">
-                                <circle class="ring-bg"   cx="40" cy="40" r="34"/>
+                                <circle class="ring-bg" cx="40" cy="40" r="34"/>
                                 <circle class="ring-fill" cx="40" cy="40" r="34"
                                         stroke-dasharray="213.6"
-                                        stroke-dashoffset="59.8"/>
+                                        stroke-dashoffset="{{ dashoffset }}"/>
                             </svg>
                             <div class="harvest-ring-label" aria-hidden="true">
-                                <strong>72%</strong>
+                                <strong>{{ porcentaje_cosecha }}%</strong>
                                 <span>meta</span>
                             </div>
                         </div>
                         <div class="harvest-details">
-                            <p class="harvest-headline">42 kg recolectados</p>
-                            <p class="harvest-sub">Meta semanal: 58 kg</p>
-                            <div class="harvest-bar" data-progress="72">
+                            <p class="harvest-headline">{{ (cosecha_semana_kg | round(1)) }} kg recolectados</p>
+
+                            <div class="harvest-meta-row">
+                                <p class="harvest-sub">Meta semanal: <span id="js-meta-value">{{ meta_semanal | round(1) }}</span> kg</p>
+                                <button class="harvest-meta-edit-btn" id="js-btn-edit-meta" type="button" title="Editar meta" aria-label="Editar meta">
+                                    <i data-lucide="edit-3"></i>
+                                </button>
+                            </div>
+
+                            <div class="harvest-bar" data-progress="{{ porcentaje_cosecha }}">
                                 <div></div>
                             </div>
-                            <p class="harvest-bar-note">72% completado esta semana</p>
+                            <p class="harvest-bar-note">{{ porcentaje_cosecha }}% completado esta semana</p>
                         </div>
                     </div>
                 </article>
 
             </div><!-- /content-grid -->
+
+            <!-- Modal editar meta semanal -->
+            <div class="modal-overlay" id="js-modal-meta" aria-hidden="true">
+                <div class="modal-box">
+                    <div class="modal-header">
+                        <h3><i data-lucide="target"></i> Editar meta semanal</h3>
+                        <button class="modal-close" id="js-modal-close" type="button" aria-label="Cerrar">
+                            <i data-lucide="x"></i>
+                        </button>
+                    </div>
+                    <form action="{{ url_for('actualizar_meta') }}" method="post" class="modal-form">
+                        <label class="modal-label" for="meta-input">¿Cuántos kg deseas cosechar esta semana?</label>
+                        <div class="modal-input-group">
+                            <input type="number" step="0.1" min="0.1" id="meta-input" name="meta_semanal" value="{{ meta_semanal | round(1) }}" class="modal-input" required>
+                            <span class="modal-input-unit">kg</span>
+                        </div>
+                        <div class="modal-actions">
+                            <button type="button" id="js-modal-cancel" class="modal-btn modal-btn-cancel">Cancelar</button>
+                            <button type="submit" class="modal-btn modal-btn-save">Guardar meta</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
         </main>
     </div><!-- /dash-body -->
 </div><!-- /dash-shell -->

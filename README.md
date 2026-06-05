@@ -203,6 +203,42 @@ GPT4All("Meta-Llama-3-8B-Instruct.Q4_0.gguf")
 
 La primera consulta puede tardar porque GPT4All descarga o carga un modelo de varios GB. No subas archivos `.gguf` al repositorio; están excluidos por `.gitignore`.
 
+## Configuración de Sensores IoT (DHT11 y YL-69)
+
+El sistema IoT lee variables críticas del cultivo de limón utilizando un microcontrolador ESP32 y las envía al servidor local. A continuación se detallan las conexiones y configuraciones:
+
+### 1. Sensor de Humedad y Temperatura del Aire (DHT11)
+*   **Descripción**: Mide la temperatura ambiente y el porcentaje de humedad en el aire.
+*   **Conexiones**:
+    *   **VCC**: 3.3V (o 5V) en el ESP32.
+    *   **GND**: GND en el ESP32.
+    *   **DATA**: Pin GPIO 4 en el ESP32 (definido como `DHTPIN` en el código).
+*   **Librerías requeridas**:
+    *   *DHT sensor library* de Adafruit (instalar desde el Gestor de Librerías del Arduino IDE).
+    *   *Adafruit Unified Sensor* (dependencia de Adafruit requerida).
+
+### 2. Higrómetro de Suelo (YL-69)
+*   **Descripción**: Mide la humedad presente en la tierra del cultivo (limonar). Consta de una sonda de dos puntas metálicas que se entierra en el suelo y un módulo comparador.
+*   **Conexiones**:
+    *   **VCC**: 3.3V en el ESP32.
+    *   **GND**: GND en el ESP32.
+    *   **AO (Salida Analógica)**: Pin GPIO 34 en el ESP32 (entrada analógica ADC1).
+*   **Mapeo de Valores (Calibración)**:
+    *   El ESP32 posee un conversor analógico-digital (ADC) de 12 bits, dando lecturas de 0 a 4095.
+    *   A mayor humedad, menor resistencia eléctrica, reduciendo la lectura del ADC.
+    *   El mapeo se calcula en el código con la función:
+        ```cpp
+        float porcentajeSuelo = map(lecturaSueloRaw, 4095, 2000, 0, 100);
+        ```
+        Donde `4095` es el valor con el sensor al aire libre (humedad 0%) y `2000` representa el suelo sumergido en agua/saturado (humedad 100%). Se pueden ajustar estos límites según las características físicas de tu suelo.
+
+### 3. Carga y Configuración en el ESP32
+1. Abre el archivo [esp32_sensores.ino](file:///C:/Users/KOLD/Documents/2026/diplomado/agrocitrico/agrocitrico-diplomado/esp32_sensores.ino) en el Arduino IDE.
+2. Configura tu placa en el menú de herramientas (ej. **ESP32 Dev Module**).
+3. Asegúrate de configurar la red Wi-Fi (`ssid` y `password`) con las credenciales de tu router local.
+4. Ajusta la dirección IP en `serverUrl` (ej. `http://192.168.101.10:5000/api/sensores`) con la IP interna asignada a tu PC por tu router local.
+5. Sube el código y abre el monitor serial (115200 baudios) para verificar que conecte a la red e inicie a reportar lecturas.
+
 ## Comandos útiles
 
 ```bash
