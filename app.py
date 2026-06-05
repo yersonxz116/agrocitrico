@@ -366,7 +366,11 @@ def register():
                 db.session.rollback()
                 errors["email"] = "No se pudo guardar el usuario en la base de datos"
             else:
-                return redirect(url_for("login"))
+                session.clear()
+                session["mfa_setup_required"] = True
+                session["user_id"] = user.id
+                session["user_name"] = user.fullname
+                return redirect(url_for("mfa_setup"))
 
     return render_template("register.html", errors=errors, form=form)
 
