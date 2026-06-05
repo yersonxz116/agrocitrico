@@ -40,6 +40,15 @@
             <a class="sidebar-link is-active" href="{{ url_for('cosechas') }}">
                 <span class="sidebar-link-icon"><i data-lucide="wheat"></i></span><span>Cosechas</span>
             </a>
+            <a class="sidebar-link" href="{{ url_for('dispositivos') }}">
+                <span class="sidebar-link-icon"><i data-lucide="cpu"></i></span><span>Dispositivos</span>
+            </a>
+            {% if user.is_admin %}
+            <p class="sidebar-section-label">Admin</p>
+            <a class="sidebar-link" href="{{ url_for('admin_dashboard') }}">
+                <span class="sidebar-link-icon"><i data-lucide="shield"></i></span><span>Administración</span>
+            </a>
+            {% endif %}
         </nav>
         <div class="sidebar-footer">
             <div class="sidebar-user">

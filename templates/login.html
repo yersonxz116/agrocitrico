@@ -84,7 +84,10 @@
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label" for="password">Contraseña</label>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label class="form-label" for="password">Contraseña</label>
+                        <a href="{{ url_for('forgot_password') }}" style="font-size: 0.75rem; font-weight: 600; color: var(--green-600); text-decoration: none; transition: color 0.2s;" onmouseover="this.style.color='var(--green-700)'" onmouseout="this.style.color='var(--green-600)'">¿Olvidaste tu contraseña?</a>
+                    </div>
                     <div class="form-input-wrapper">
                         <input
                             class="form-input{% if errors.get('password') %} is-error{% endif %}"

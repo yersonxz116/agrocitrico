@@ -82,7 +82,7 @@ _model_lock = Lock()
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 MFA_ISSUER_NAME = "AgroCitrico"
 
-GUEST_ENDPOINTS = {"login", "register", "login_pem"}
+GUEST_ENDPOINTS = {"login", "register", "login_pem", "forgot_password", "reset_password"}
 MFA_ENDPOINTS = {"mfa_verify", "mfa_backup"}
 SETUP_ENDPOINTS = {
     "mfa_setup",
@@ -91,7 +91,12 @@ SETUP_ENDPOINTS = {
     "mfa_download_pem",
     "mfa_setup_finish",
 }
-PROTECTED_ENDPOINTS = {"dashboard", "actividades", "actividad_nueva", "actividad_eliminar", "cosechas", "cosecha_nueva", "cosecha_eliminar", "actualizar_meta"}
+PROTECTED_ENDPOINTS = {
+    "dashboard", "actividades", "actividad_nueva", "actividad_eliminar",
+    "cosechas", "cosecha_nueva", "cosecha_eliminar", "actualizar_meta",
+    "dispositivos", "dispositivo_registrar", "dispositivo_eliminar", "dispositivo_toggle",
+    "admin_dashboard", "admin_user_toggle", "admin_user_role", "admin_mfa_reset", "admin_device_toggle"
+}
 
 _setup_store = {}
 
@@ -167,6 +172,10 @@ class User(db.Model):
     pem_fingerprint = db.Column(db.String(64), nullable=True)
     pem_public_key = db.Column(db.Text, nullable=True)
     meta_semanal = db.Column(db.Numeric(10, 2), nullable=False, default=58.0)
+    reset_token = db.Column(db.String(100), nullable=True)
+    reset_token_expiry = db.Column(db.DateTime, nullable=True)
+    role = db.Column(db.String(20), nullable=False, default="user")
+    activo = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(db.DateTime, nullable=False, server_default=db.func.now())
     updated_at = db.Column(
         db.DateTime,
@@ -182,6 +191,10 @@ class User(db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+    @property
+    def is_admin(self):
+        return self.role == "admin"
 
     def get_totp_secret(self):
         return decrypt_value(self.totp_secret) if self.totp_secret else None
@@ -233,10 +246,25 @@ class Cosecha(db.Model):
     user = db.relationship("User", backref=db.backref("cosechas", lazy="dynamic"))
 
 
+class Dispositivo(db.Model):
+    __tablename__ = "dispositivos"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    nombre = db.Column(db.String(120), nullable=False)
+    token = db.Column(db.String(64), nullable=False, unique=True, index=True)
+    activo = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, nullable=False, server_default=db.func.now())
+
+    user = db.relationship("User", backref=db.backref("dispositivos", lazy="dynamic"))
+    lecturas = db.relationship("LecturaSensor", backref="dispositivo", lazy="dynamic")
+
+
 class LecturaSensor(db.Model):
     __tablename__ = "lecturas_sensor"
 
     id = db.Column(db.Integer, primary_key=True)
+    dispositivo_id = db.Column(db.Integer, db.ForeignKey("dispositivos.id"), nullable=True, index=True)
     temperatura = db.Column(db.Float, nullable=True)
     humedad_aire = db.Column(db.Float, nullable=True)
     humedad_suelo = db.Column(db.Float, nullable=True)
@@ -257,6 +285,76 @@ def get_model():
 
 def is_valid_email(value):
     return bool(EMAIL_RE.match(value.strip()))
+
+
+def send_reset_email(email, reset_link):
+    api_key = os.environ.get("RESEND_API_KEY")
+    if not api_key:
+        print(f"[DEVELOPMENT ONLY] RESEND_API_KEY no configurada. Enlace de restablecimiento para {email}: {reset_link}")
+        return True
+
+    from_email = os.environ.get("RESEND_FROM_EMAIL", "onboarding@resend.dev")
+    url = "https://api.resend.com/emails"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "from": f"AgroCitrico <{from_email}>",
+        "to": email,
+        "subject": "Restablecer contrasena - AgroCitrico",
+        "html": f"""
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #E0E0E0; border-radius: 12px; background-color: #FFFFFF;">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h2 style="color: #2E7D32; margin: 0; font-size: 24px; font-weight: 700;">AgroCitrico</h2>
+                <p style="color: #666; margin: 5px 0 0 0; font-size: 14px;">Gestion agricola digital</p>
+            </div>
+            
+            <p style="font-size: 16px; color: #1E1E1E; line-height: 1.6;">Hola,</p>
+            <p style="font-size: 16px; color: #1E1E1E; line-height: 1.6;">Recibimos una solicitud para restablecer la contrasena de tu cuenta en AgroCitrico.</p>
+            <p style="font-size: 16px; color: #1E1E1E; line-height: 1.6;">Haz clic en el boton de abajo para establecer una nueva contrasena. Por seguridad, este enlace expirara en 1 hora:</p>
+            
+            <div style="margin: 35px 0; text-align: center;">
+                <a href="{reset_link}" style="background-color: #388E3C; color: #FFFFFF; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; display: inline-block;">Restablecer contrasena</a>
+            </div>
+            
+            <p style="font-size: 14px; color: #666; line-height: 1.6;">Si el boton no funciona, puedes copiar y pegar el siguiente enlace en tu navegador:</p>
+            <p style="font-size: 13px; color: #388E3C; word-break: break-all; line-height: 1.6;"><a href="{reset_link}" style="color: #388E3C;">{reset_link}</a></p>
+            
+            <p style="font-size: 14px; color: #666; line-height: 1.6; margin-top: 25px;">Si no solicitaste este cambio, puedes ignorar este correo sin problemas; tu contrasena actual seguira siendo segura.</p>
+            
+            <hr style="border: none; border-top: 1px solid #E5E5E5; margin: 30px 0;">
+            <p style="font-size: 12px; color: #888; text-align: center; margin: 0;">Este es un correo automatico, por favor no respondas a este mensaje.</p>
+        </div>
+        """
+    }
+
+    try:
+        import requests
+        res = requests.post(url, json=payload, headers=headers, timeout=10)
+        if res.status_code in (200, 201):
+            print(f"Correo enviado exitosamente a {email}: {res.json()}")
+            return True
+        else:
+            print(f"Error al enviar correo (Resend): {res.status_code} - {res.text}")
+            return False
+    except Exception as e:
+        try:
+            import urllib.request
+            import json
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers=headers,
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=10) as response:
+                res_body = response.read().decode("utf-8")
+                print(f"Correo enviado exitosamente a {email} (urllib): {res_body}")
+                return True
+        except Exception as ex:
+            print(f"Error al enviar correo: {e} | Fallback error: {ex}")
+            return False
 
 
 # ── Middleware ────────────────────────────────────────────────────────────────
@@ -332,6 +430,8 @@ def login():
                 if user is None or not user.check_password(password):
                     errors["email"] = "Correo o contrasena incorrectos"
                     errors["password"] = "Correo o contrasena incorrectos"
+                elif not user.activo:
+                    errors["email"] = "Tu cuenta ha sido desactivada por el administrador"
                 else:
                     session.clear()
                     if user.mfa_enabled:
@@ -408,6 +508,8 @@ def login_pem():
             user = User.query.filter_by(email=email).first()
             if not user or not user.pem_fingerprint:
                 errors["email"] = "Credenciales invalidas"
+            elif not user.activo:
+                errors["email"] = "Tu cuenta ha sido desactivada por el administrador"
             else:
                 try:
                     pem_data = pem_file.read()
@@ -429,6 +531,71 @@ def login_pem():
                     errors["pem_file"] = "Archivo PEM invalido"
 
     return render_template("login_pem.html", errors=errors, form=form)
+
+
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    errors = {}
+    success_message = None
+    form = {"email": ""}
+
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        form["email"] = email
+
+        if not is_valid_email(email):
+            errors["email"] = "Ingresa un correo electronico valido"
+
+        if not errors:
+            user = User.query.filter_by(email=email).first()
+            if user:
+                token = secrets.token_urlsafe(32)
+                user.reset_token = token
+                user.reset_token_expiry = datetime.now() + timedelta(hours=1)
+                db.session.commit()
+
+                reset_link = f"{request.host_url[:-1]}{url_for('reset_password', token=token)}"
+                send_reset_email(user.email, reset_link)
+
+            # Para mayor seguridad, siempre mostramos mensaje de exito
+            success_message = "Si el correo esta registrado, recibiras un enlace para restablecer tu contrasena en unos minutos."
+
+    return render_template("forgot_password.html", errors=errors, form=form, success_message=success_message)
+
+
+@app.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    errors = {}
+    success_message = None
+    invalid_token = False
+
+    user = User.query.filter(User.reset_token == token, User.reset_token_expiry > datetime.now()).first()
+    if not user:
+        invalid_token = True
+    else:
+        if request.method == "POST":
+            password = request.form.get("password", "")
+            password_confirm = request.form.get("password_confirm", "")
+
+            if len(password) < 8:
+                errors["password"] = "La contrasena debe tener al menos 8 caracteres"
+            if password_confirm != password or not password_confirm:
+                errors["password_confirm"] = "Las contrasenas no coinciden"
+
+            if not errors:
+                user.set_password(password)
+                user.reset_token = None
+                user.reset_token_expiry = None
+                db.session.commit()
+                success_message = "Tu contrasena ha sido restablecida con exito. Ya puedes iniciar sesion."
+
+    return render_template(
+        "reset_password.html",
+        errors=errors,
+        token=token,
+        invalid_token=invalid_token,
+        success_message=success_message
+    )
 
 
 # ── MFA verification routes ───────────────────────────────────────────────────
@@ -661,7 +828,13 @@ def dashboard():
     meta_semanal = float(user.meta_semanal)
     porcentaje_cosecha = int((cosecha_semana_kg / meta_semanal) * 100) if meta_semanal > 0 else 0
 
-    ultima_lectura = LecturaSensor.query.order_by(LecturaSensor.created_at.desc()).first()
+    disp_ids = [d.id for d in Dispositivo.query.filter_by(user_id=user.id).all()]
+    if disp_ids:
+        ultima_lectura = LecturaSensor.query.filter(
+            LecturaSensor.dispositivo_id.in_(disp_ids)
+        ).order_by(LecturaSensor.created_at.desc()).first()
+    else:
+        ultima_lectura = None
 
     if ultima_lectura:
         temp = ultima_lectura.temperatura
@@ -841,16 +1014,64 @@ def cosecha_eliminar(cos_id):
     return redirect(url_for("cosechas"))
 
 
-# ── API Sensores IoT ─────────────────────────────────────────────────────────
+# ── Dispositivos IoT ─────────────────────────────────────────────────────────
 
-SENSOR_TOKEN = os.environ.get("SENSOR_TOKEN", "agrocitrico-sensor-2026")
+
+@app.route("/dispositivos")
+def dispositivos():
+    user = g.current_user
+    lista = Dispositivo.query.filter_by(user_id=user.id).order_by(Dispositivo.created_at.desc()).all()
+    return render_template("dispositivos.html", user=user, dispositivos=lista)
+
+
+@app.route("/dispositivos/registrar", methods=["POST"])
+def dispositivo_registrar():
+    user = g.current_user
+    nombre = request.form.get("nombre", "").strip()
+
+    if not nombre:
+        return redirect(url_for("dispositivos"))
+
+    token = secrets.token_hex(32)
+    disp = Dispositivo(user_id=user.id, nombre=nombre, token=token)
+    db.session.add(disp)
+    db.session.commit()
+
+    return redirect(url_for("dispositivos"))
+
+
+@app.route("/dispositivos/<int:disp_id>/eliminar", methods=["POST"])
+def dispositivo_eliminar(disp_id):
+    user = g.current_user
+    disp = Dispositivo.query.filter_by(id=disp_id, user_id=user.id).first_or_404()
+    LecturaSensor.query.filter_by(dispositivo_id=disp.id).delete()
+    db.session.delete(disp)
+    db.session.commit()
+    return redirect(url_for("dispositivos"))
+
+
+@app.route("/dispositivos/<int:disp_id>/toggle", methods=["POST"])
+def dispositivo_toggle(disp_id):
+    user = g.current_user
+    disp = Dispositivo.query.filter_by(id=disp_id, user_id=user.id).first_or_404()
+    disp.activo = not disp.activo
+    db.session.commit()
+    return redirect(url_for("dispositivos"))
+
+
+# ── API Sensores IoT ─────────────────────────────────────────────────────────
 
 
 @app.post("/api/sensores")
 def api_sensores():
-    token = request.headers.get("Authorization", "")
-    if token != f"Bearer {SENSOR_TOKEN}":
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
         return jsonify({"error": "No autorizado"}), 401
+
+    token = auth[7:]
+    disp = Dispositivo.query.filter_by(token=token, activo=True).first()
+    if not disp:
+        return jsonify({"error": "Token inválido o dispositivo inactivo"}), 401
 
     data = request.get_json(silent=True) or {}
     temperatura = data.get("temperatura")
@@ -861,6 +1082,7 @@ def api_sensores():
         return jsonify({"error": "No se recibieron datos"}), 400
 
     lectura = LecturaSensor(
+        dispositivo_id=disp.id,
         temperatura=temperatura,
         humedad_aire=humedad_aire,
         humedad_suelo=humedad_suelo,
@@ -876,7 +1098,25 @@ def api_sensores_ultimo():
     if not session.get("user_id"):
         return jsonify({"error": "No autorizado"}), 401
 
-    lectura = LecturaSensor.query.order_by(LecturaSensor.created_at.desc()).first()
+    user_id = session["user_id"]
+    disp_ids = [d.id for d in Dispositivo.query.filter_by(user_id=user_id).all()]
+
+    if not disp_ids:
+        return jsonify({
+            "temperatura": None,
+            "humedad_aire": None,
+            "humedad_suelo": None,
+            "trends": {
+                "temperatura": "Sin dispositivos",
+                "humedad_aire": "Sin dispositivos",
+                "humedad_suelo": "Sin dispositivos"
+            }
+        })
+
+    lectura = LecturaSensor.query.filter(
+        LecturaSensor.dispositivo_id.in_(disp_ids)
+    ).order_by(LecturaSensor.created_at.desc()).first()
+
     if not lectura:
         return jsonify({
             "temperatura": None,
@@ -907,6 +1147,91 @@ def api_sensores_ultimo():
             "humedad_suelo": trend_hum_suelo
         }
     })
+
+
+@app.route("/admin")
+def admin_dashboard():
+    if not g.current_user.is_admin:
+        return redirect(url_for("dashboard"))
+
+    users = User.query.order_by(User.created_at.desc()).all()
+    devices = Dispositivo.query.order_by(Dispositivo.created_at.desc()).all()
+    activities = Actividad.query.order_by(Actividad.created_at.desc()).all()
+    harvests = Cosecha.query.order_by(Cosecha.created_at.desc()).all()
+
+    total_users_count = len(users)
+    total_devices_count = len(devices)
+    total_activities_count = len(activities)
+    total_harvests_count = len(harvests)
+
+    return render_template(
+        "admin_dashboard.html",
+        user=g.current_user,
+        users=users,
+        devices=devices,
+        activities=activities[:10],  # show top 10 recent
+        harvests=harvests[:10],      # show top 10 recent
+        total_users_count=total_users_count,
+        total_devices_count=total_devices_count,
+        total_activities_count=total_activities_count,
+        total_harvests_count=total_harvests_count
+    )
+
+
+@app.post("/admin/usuarios/<int:target_user_id>/toggle")
+def admin_user_toggle(target_user_id):
+    if not g.current_user.is_admin:
+        return redirect(url_for("dashboard"))
+
+    if target_user_id == g.current_user.id:
+        return redirect(url_for("admin_dashboard"))
+
+    user = User.query.filter_by(id=target_user_id).first_or_404()
+    user.activo = not user.activo
+    db.session.commit()
+    return redirect(url_for("admin_dashboard"))
+
+
+@app.post("/admin/usuarios/<int:target_user_id>/role")
+def admin_user_role(target_user_id):
+    if not g.current_user.is_admin:
+        return redirect(url_for("dashboard"))
+
+    if target_user_id == g.current_user.id:
+        return redirect(url_for("admin_dashboard"))
+
+    user = User.query.filter_by(id=target_user_id).first_or_404()
+    new_role = request.form.get("role", "user").strip().lower()
+    if new_role in ("admin", "user"):
+        user.role = new_role
+        db.session.commit()
+    return redirect(url_for("admin_dashboard"))
+
+
+@app.post("/admin/usuarios/<int:target_user_id>/mfa-reset")
+def admin_mfa_reset(target_user_id):
+    if not g.current_user.is_admin:
+        return redirect(url_for("dashboard"))
+
+    user = User.query.filter_by(id=target_user_id).first_or_404()
+    user.mfa_enabled = False
+    user.totp_secret = None
+    user.pem_fingerprint = None
+    user.pem_public_key = None
+    BackupCode.query.filter_by(user_id=user.id).delete()
+    db.session.commit()
+    return redirect(url_for("admin_dashboard"))
+
+
+@app.post("/admin/dispositivos/<int:disp_id>/toggle")
+def admin_device_toggle(disp_id):
+    if not g.current_user.is_admin:
+        return redirect(url_for("dashboard"))
+
+    disp = Dispositivo.query.filter_by(id=disp_id).first_or_404()
+    disp.activo = not disp.activo
+    db.session.commit()
+    return redirect(url_for("admin_dashboard"))
 
 
 @app.route("/logout", methods=["POST"])

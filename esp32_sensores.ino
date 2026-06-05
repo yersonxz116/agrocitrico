@@ -8,7 +8,8 @@ const char* password = "burkina3699";
 
 // ── Servidor Flask ───────────────────────────────────────────────────────────
 const char* serverUrl = "http://192.168.101.10:5000/api/sensores";
-const char* sensorToken = "agrocitrico-sensor-2026";
+// Token unico generado al registrar este dispositivo en la plataforma
+const char* sensorToken = "80b4981f08724936f6e1a9a9160bf7da486b116cbaa607fefd9df4b8138e8680";
 
 // ── DHT11 ────────────────────────────────────────────────────────────────────
 #define DHTPIN 4
@@ -67,8 +68,9 @@ void loop() {
 
     // Enviar a Flask
     if (WiFi.status() == WL_CONNECTED) {
+      WiFiClient client;
       HTTPClient http;
-      http.begin(serverUrl);
+      http.begin(client, serverUrl);
       http.addHeader("Content-Type", "application/json");
       http.addHeader("Authorization", String("Bearer ") + sensorToken);
 

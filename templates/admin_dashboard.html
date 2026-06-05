@@ -1,0 +1,1183 @@
+{# templates/admin_dashboard.html #}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administracion — AgroCitrico</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <style>
+        /* ══════════════════════════════════════════════════
+           ADMIN PANEL STYLES
+        ══════════════════════════════════════════════════ */
+
+        /* ── Banner ───────────────────────────────────── */
+        .admin-banner {
+            background: linear-gradient(135deg, #0f2914 0%, #1a4a24 50%, #245c31 100%);
+            border-radius: 16px;
+            padding: 28px 32px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        .admin-banner::before {
+            content: '';
+            position: absolute;
+            top: -60%;
+            right: -10%;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            background: rgba(246,217,74,0.06);
+        }
+        .admin-banner-text h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 6px;
+            position: relative;
+        }
+        .admin-banner-text p {
+            font-size: .85rem;
+            color: rgba(255,255,255,.6);
+            position: relative;
+        }
+        .admin-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(246,217,74,.15);
+            border: 1px solid rgba(246,217,74,.3);
+            color: #f6d94a;
+            font-size: .72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            padding: 6px 12px;
+            border-radius: 8px;
+            position: relative;
+        }
+        .admin-badge svg { width: 14px; height: 14px; stroke: currentColor; }
+
+        /* ── Stats ────────────────────────────────────── */
+        .admin-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+        .a-stat {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transition: transform .2s, box-shadow .2s;
+        }
+        .a-stat:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0,0,0,.08);
+        }
+        .a-stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .a-stat-icon svg { width: 22px; height: 22px; stroke: currentColor; stroke-width: 2; }
+        .a-stat-icon-green  { background: #dcfce7; color: #16a34a; }
+        .a-stat-icon-blue   { background: #dbeafe; color: #2563eb; }
+        .a-stat-icon-amber  { background: #fef3c7; color: #d97706; }
+        .a-stat-icon-purple { background: #ede9fe; color: #7c3aed; }
+        .a-stat-num {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #1a2e1a;
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+        .a-stat-label {
+            font-size: .75rem;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+        }
+
+        /* ── Tabs ─────────────────────────────────────── */
+        .admin-tabs {
+            display: flex;
+            gap: 4px;
+            background: #f3f4f6;
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .admin-tabs::-webkit-scrollbar { display: none; }
+        .tab-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            background: none;
+            border: none;
+            font-family: 'Montserrat', sans-serif;
+            font-size: .82rem;
+            font-weight: 600;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 10px 16px;
+            border-radius: 9px;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .tab-btn svg { width: 15px; height: 15px; stroke: currentColor; stroke-width: 2.2; }
+        .tab-btn:hover { color: #1a2e1a; background: rgba(255,255,255,.6); }
+        .tab-btn.is-active {
+            color: #1a2e1a;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,.08);
+        }
+        .tab-content { display: none; }
+        .tab-content.is-active { display: block; animation: fadeTab .2s ease; }
+        @keyframes fadeTab { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ── Section header ────────────────────────────── */
+        .section-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .section-head h2 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #1a2e1a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .section-head h2 svg { width: 18px; height: 18px; stroke: #2d7a2d; stroke-width: 2.2; }
+        .search-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #fff;
+            border: 1.5px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 0 12px;
+            height: 38px;
+            transition: border-color .2s, box-shadow .2s;
+        }
+        .search-box:focus-within { border-color: #2d7a2d; box-shadow: 0 0 0 3px rgba(45,122,45,.1); }
+        .search-box svg { width: 15px; height: 15px; stroke: #9ca3af; stroke-width: 2.2; flex-shrink: 0; }
+        .search-box input {
+            border: none;
+            outline: none;
+            font-family: 'Montserrat', sans-serif;
+            font-size: .82rem;
+            color: #374151;
+            width: 180px;
+            background: transparent;
+        }
+
+        /* ── Desktop table ─────────────────────────────── */
+        .tabla-wrapper {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            overflow-x: auto;
+            box-shadow: 0 1px 3px rgba(0,0,0,.04);
+        }
+        .tabla {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: .84rem;
+        }
+        .tabla th {
+            background: #fafbfc;
+            padding: 14px 16px;
+            font-weight: 700;
+            font-size: .72rem;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: #6b7280;
+            border-bottom: 1px solid #e5e7eb;
+            text-align: left;
+            white-space: nowrap;
+        }
+        .tabla td {
+            padding: 14px 16px;
+            color: #374151;
+            border-bottom: 1px solid #f3f4f6;
+            vertical-align: middle;
+        }
+        .tabla tr:last-child td { border-bottom: none; }
+        .tabla tr:hover td { background: #f9fafb; }
+
+        /* ── User/device cells ─────────────────────────── */
+        .user-cell { display: flex; align-items: center; gap: 10px; }
+        .user-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2d7a2d, #3da358);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .75rem;
+            font-weight: 700;
+            color: #fff;
+            flex-shrink: 0;
+        }
+        .user-avatar-inactive { background: linear-gradient(135deg, #9ca3af, #6b7280); }
+        .user-avatar-sm { width: 28px; height: 28px; font-size: .65rem; }
+        .user-cell-info { min-width: 0; }
+        .user-cell-name { font-weight: 700; color: #1a2e1a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .user-cell-email { font-size: .72rem; color: #9ca3af; margin-top: 1px; }
+
+        /* ── Badges ────────────────────────────────────── */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: .72rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .badge-admin    { background: #dbeafe; color: #1e40af; }
+        .badge-user     { background: #f3f4f6; color: #6b7280; }
+        .badge-active   { background: #dcfce7; color: #16a34a; }
+        .badge-inactive { background: #fee2e2; color: #dc2626; }
+        .badge-mfa      { background: #e0f2fe; color: #0369a1; }
+        .badge-pem      { background: #ede9fe; color: #7c3aed; }
+        .badge-none     { background: #f9fafb; color: #9ca3af; border: 1px solid #e5e7eb; }
+
+        /* ── Action buttons ────────────────────────────── */
+        .actions-cell { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 6px 10px;
+            border-radius: 7px;
+            font-size: .72rem;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            transition: all 0.15s;
+        }
+        .btn-action svg { width: 13px; height: 13px; stroke: currentColor; stroke-width: 2.2; }
+        .btn-activate   { background: #dcfce7; color: #16a34a; }
+        .btn-activate:hover { background: #bbf7d0; }
+        .btn-deactivate { background: #fee2e2; color: #dc2626; }
+        .btn-deactivate:hover { background: #fecaca; }
+        .btn-reset      { background: #f3f4f6; color: #4b5563; border: 1px solid #e5e7eb; }
+        .btn-reset:hover { background: #e5e7eb; }
+        .btn-role       { background: #dbeafe; color: #1e40af; }
+        .btn-role:hover { background: #bfdbfe; }
+
+        /* Device token */
+        .token-cell {
+            font-family: 'Courier New', monospace;
+            font-size: .72rem;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            padding: 4px 8px;
+            border-radius: 6px;
+            color: #6b7280;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: #9ca3af;
+        }
+        .empty-state svg { width: 40px; height: 40px; stroke: #d1d5db; stroke-width: 1.5; margin-bottom: 12px; }
+        .empty-state p { font-size: .85rem; }
+
+        /* ══════════════════════════════════════════════════
+           MOBILE CARDS (replaces table on small screens)
+        ══════════════════════════════════════════════════ */
+        .mobile-cards { display: none; }
+
+        .m-card {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,.04);
+        }
+        .m-card-head {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .m-card-head-info { flex: 1; min-width: 0; }
+        .m-card-head-info .user-cell-name { font-size: .9rem; }
+        .m-card-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .m-card-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 8px 0;
+            border-top: 1px solid #f3f4f6;
+            font-size: .8rem;
+        }
+        .m-card-row:first-of-type { border-top: none; }
+        .m-card-label { color: #6b7280; font-weight: 600; font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; }
+        .m-card-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            padding-top: 12px;
+            border-top: 1px solid #f3f4f6;
+        }
+        .m-card-actions .btn-action { flex: 1; justify-content: center; padding: 10px 12px; font-size: .78rem; }
+
+        /* ══════════════════════════════════════════════════
+           MODAL
+        ══════════════════════════════════════════════════ */
+        .adm-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,.5);
+            z-index: 3000;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            animation: modalFadeIn .15s ease;
+        }
+        .adm-modal-overlay.is-open { display: flex; }
+        @keyframes modalFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .adm-modal {
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 24px 64px rgba(0,0,0,.2);
+            width: 100%;
+            max-width: 400px;
+            animation: modalSlideUp .2s ease;
+        }
+        @keyframes modalSlideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+        .adm-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px 0;
+        }
+        .adm-modal-header h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #1a2e1a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .adm-modal-header h3 svg { width: 20px; height: 20px; stroke-width: 2.2; }
+        .adm-modal-header h3 .ic-danger { stroke: #dc2626; }
+        .adm-modal-header h3 .ic-warn { stroke: #d97706; }
+        .adm-modal-header h3 .ic-info { stroke: #2563eb; }
+
+        .adm-modal-close {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            background: transparent;
+            color: #6b7280;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background .15s, color .15s;
+        }
+        .adm-modal-close:hover { background: #fee2e2; color: #dc2626; border-color: #fecaca; }
+        .adm-modal-close svg { width: 16px; height: 16px; stroke: currentColor; stroke-width: 2.2; }
+
+        .adm-modal-body {
+            padding: 16px 24px;
+        }
+        .adm-modal-body p {
+            font-size: .88rem;
+            color: #4b5563;
+            line-height: 1.5;
+        }
+        .adm-modal-body .modal-user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 12px;
+            margin-top: 12px;
+        }
+        .adm-modal-body .modal-select-group {
+            margin-top: 16px;
+        }
+        .adm-modal-body .modal-select-group label {
+            display: block;
+            font-size: .8rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 6px;
+        }
+        .adm-modal-body .modal-select-group select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1.5px solid #e5e7eb;
+            border-radius: 10px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: .88rem;
+            font-weight: 600;
+            color: #1a2e1a;
+            background: #fff;
+            outline: none;
+            cursor: pointer;
+            transition: border-color .2s;
+        }
+        .adm-modal-body .modal-select-group select:focus { border-color: #2d7a2d; }
+
+        .adm-modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            padding: 0 24px 20px;
+        }
+        .adm-modal-btn {
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: .84rem;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            transition: transform .1s, background .15s;
+        }
+        .adm-modal-btn:active { transform: scale(0.97); }
+        .adm-modal-btn-cancel { background: #f3f4f6; color: #4b5563; }
+        .adm-modal-btn-cancel:hover { background: #e5e7eb; }
+        .adm-modal-btn-danger { background: #dc2626; color: #fff; }
+        .adm-modal-btn-danger:hover { background: #b91c1c; }
+        .adm-modal-btn-warn { background: #d97706; color: #fff; }
+        .adm-modal-btn-warn:hover { background: #b45309; }
+        .adm-modal-btn-primary { background: #2d7a2d; color: #fff; }
+        .adm-modal-btn-primary:hover { background: #245f24; }
+
+        /* ══════════════════════════════════════════════════
+           RESPONSIVE
+        ══════════════════════════════════════════════════ */
+        @media (max-width: 1200px) {
+            .admin-stats { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 900px) {
+            .tabla-wrapper { display: none; }
+            .mobile-cards { display: block; }
+            .admin-stats { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+            .a-stat { padding: 14px; gap: 12px; }
+            .a-stat-icon { width: 40px; height: 40px; }
+            .a-stat-num { font-size: 1.4rem; }
+        }
+
+        @media (max-width: 640px) {
+            .admin-stats { grid-template-columns: 1fr 1fr; }
+            .a-stat { padding: 12px; }
+            .a-stat-num { font-size: 1.2rem; }
+            .a-stat-label { font-size: .68rem; }
+            .admin-banner { padding: 20px; flex-direction: column; align-items: flex-start; gap: 12px; }
+            .admin-banner-text h1 { font-size: 1.2rem; }
+            .admin-tabs { gap: 2px; padding: 3px; }
+            .tab-btn { padding: 8px 10px; font-size: .74rem; gap: 5px; }
+            .tab-btn svg { width: 13px; height: 13px; }
+            .section-head { flex-direction: column; align-items: stretch; }
+            .search-box { width: 100%; }
+            .search-box input { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+<div id="js-overlay" class="sidebar-overlay"></div>
+<div class="dash-shell">
+
+    <!-- ── Sidebar ───────────────────────────────── -->
+    <aside class="dash-sidebar">
+        <div class="sidebar-top">
+            <a class="sidebar-brand" href="{{ url_for('dashboard') }}">
+                <img src="{{ url_for('static', filename='img/agrocitrico_logo.svg') }}" alt="AgroCitrico">
+            </a>
+        </div>
+        <nav class="sidebar-nav">
+            <p class="sidebar-section-label">Principal</p>
+            <a class="sidebar-link" href="{{ url_for('dashboard') }}">
+                <span class="sidebar-link-icon"><i data-lucide="layout-dashboard"></i></span><span>Panel</span>
+            </a>
+            <p class="sidebar-section-label">Gestion</p>
+            <a class="sidebar-link" href="{{ url_for('actividades') }}">
+                <span class="sidebar-link-icon"><i data-lucide="clipboard-list"></i></span><span>Actividades</span>
+            </a>
+            <a class="sidebar-link" href="{{ url_for('cosechas') }}">
+                <span class="sidebar-link-icon"><i data-lucide="wheat"></i></span><span>Cosechas</span>
+            </a>
+            <a class="sidebar-link" href="{{ url_for('dispositivos') }}">
+                <span class="sidebar-link-icon"><i data-lucide="cpu"></i></span><span>Dispositivos</span>
+            </a>
+            {% if user.is_admin %}
+            <p class="sidebar-section-label">Admin</p>
+            <a class="sidebar-link is-active" href="{{ url_for('admin_dashboard') }}">
+                <span class="sidebar-link-icon"><i data-lucide="shield"></i></span><span>Administracion</span>
+            </a>
+            {% endif %}
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                <div class="sidebar-avatar">{{ user.fullname[0].upper() }}</div>
+                <div class="sidebar-user-info">
+                    <p class="sidebar-user-name">{{ user.fullname }}</p>
+                    <p class="sidebar-user-role">Administrador</p>
+                </div>
+            </div>
+            <form action="{{ url_for('logout') }}" method="post">
+                <button class="sidebar-logout" type="submit" title="Cerrar sesion"><i data-lucide="log-out"></i></button>
+            </form>
+        </div>
+    </aside>
+
+    <!-- ── Cuerpo principal ───────────────────────── -->
+    <div class="dash-body">
+        <header class="dash-topbar">
+            <div class="topbar-greeting">
+                <button class="topbar-hamburger" id="js-hamburger" aria-label="Abrir menu">
+                    <i data-lucide="menu"></i>
+                </button>
+                <h1>Administracion</h1>
+            </div>
+        </header>
+
+        <main class="dash-main">
+
+            <!-- Banner -->
+            <div class="admin-banner">
+                <div class="admin-banner-text">
+                    <h1>Panel de Control</h1>
+                    <p>Gestiona usuarios, dispositivos y monitorea la actividad de la plataforma.</p>
+                </div>
+                <span class="admin-badge"><i data-lucide="shield-check"></i> Admin</span>
+            </div>
+
+            <!-- Stats -->
+            <div class="admin-stats">
+                <div class="a-stat">
+                    <div class="a-stat-icon a-stat-icon-green"><i data-lucide="users"></i></div>
+                    <div><p class="a-stat-num">{{ total_users_count }}</p><p class="a-stat-label">Usuarios</p></div>
+                </div>
+                <div class="a-stat">
+                    <div class="a-stat-icon a-stat-icon-blue"><i data-lucide="cpu"></i></div>
+                    <div><p class="a-stat-num">{{ total_devices_count }}</p><p class="a-stat-label">Dispositivos</p></div>
+                </div>
+                <div class="a-stat">
+                    <div class="a-stat-icon a-stat-icon-amber"><i data-lucide="clipboard-list"></i></div>
+                    <div><p class="a-stat-num">{{ total_activities_count }}</p><p class="a-stat-label">Actividades</p></div>
+                </div>
+                <div class="a-stat">
+                    <div class="a-stat-icon a-stat-icon-purple"><i data-lucide="wheat"></i></div>
+                    <div><p class="a-stat-num">{{ total_harvests_count }}</p><p class="a-stat-label">Cosechas</p></div>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <nav class="admin-tabs" aria-label="Secciones">
+                <button class="tab-btn is-active" data-tab="usuarios"><i data-lucide="users"></i> Usuarios</button>
+                <button class="tab-btn" data-tab="dispositivos"><i data-lucide="cpu"></i> Dispositivos</button>
+                <button class="tab-btn" data-tab="actividades"><i data-lucide="clipboard-list"></i> Actividades</button>
+                <button class="tab-btn" data-tab="cosechas"><i data-lucide="wheat"></i> Cosechas</button>
+            </nav>
+
+            <!-- ═══════════════════════════════════════════
+                 TAB: USUARIOS
+            ═══════════════════════════════════════════ -->
+            <section id="tab-usuarios" class="tab-content is-active">
+                <div class="section-head">
+                    <h2><i data-lucide="users"></i> Gestion de Usuarios</h2>
+                    <div class="search-box">
+                        <i data-lucide="search"></i>
+                        <input type="text" id="search-users" placeholder="Buscar usuario..." autocomplete="off">
+                    </div>
+                </div>
+
+                <!-- Desktop table -->
+                <div class="tabla-wrapper">
+                    <table class="tabla" id="table-users">
+                        <thead>
+                            <tr>
+                                <th>Usuario</th>
+                                <th>Rol</th>
+                                <th>Seguridad</th>
+                                <th>Estado</th>
+                                <th>Registro</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for u in users %}
+                            <tr>
+                                <td>
+                                    <div class="user-cell">
+                                        <div class="user-avatar {{ 'user-avatar-inactive' if not u.activo }}">{{ u.fullname[0].upper() }}</div>
+                                        <div class="user-cell-info">
+                                            <p class="user-cell-name">{{ u.fullname }}</p>
+                                            <p class="user-cell-email">{{ u.email }}</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><span class="badge {{ 'badge-admin' if u.role == 'admin' else 'badge-user' }}">{{ u.role|upper }}</span></td>
+                                <td>
+                                    {% if u.mfa_enabled %}<span class="badge badge-mfa">MFA</span>{% endif %}
+                                    {% if u.pem_fingerprint %}<span class="badge badge-pem">PEM</span>{% endif %}
+                                    {% if not u.mfa_enabled and not u.pem_fingerprint %}<span class="badge badge-none">Ninguno</span>{% endif %}
+                                </td>
+                                <td><span class="badge {{ 'badge-active' if u.activo else 'badge-inactive' }}">{{ 'Activo' if u.activo else 'Suspendido' }}</span></td>
+                                <td style="white-space:nowrap;">{{ u.created_at.strftime('%d/%m/%Y') }}</td>
+                                <td>
+                                    <div class="actions-cell">
+                                        {% if u.id != user.id %}
+                                        <button class="btn-action {{ 'btn-deactivate' if u.activo else 'btn-activate' }}" type="button"
+                                            onclick="openToggleModal('{{ u.fullname }}', '{{ url_for('admin_user_toggle', target_user_id=u.id) }}', {{ 'true' if u.activo else 'false' }})">
+                                            <i data-lucide="{{ 'user-x' if u.activo else 'user-check' }}"></i>
+                                            {{ 'Suspender' if u.activo else 'Activar' }}
+                                        </button>
+                                        {% endif %}
+                                        {% if u.mfa_enabled or u.pem_fingerprint %}
+                                        <button class="btn-action btn-reset" type="button"
+                                            onclick="openResetModal('{{ u.fullname }}', '{{ url_for('admin_mfa_reset', target_user_id=u.id) }}')">
+                                            <i data-lucide="rotate-ccw"></i> Reset
+                                        </button>
+                                        {% endif %}
+                                        {% if u.id != user.id %}
+                                        <button class="btn-action btn-role" type="button"
+                                            onclick="openRoleModal('{{ u.fullname }}', '{{ url_for('admin_user_role', target_user_id=u.id) }}', '{{ u.role }}')">
+                                            <i data-lucide="crown"></i> Rol
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Mobile cards -->
+                <div class="mobile-cards" id="mobile-users">
+                    {% for u in users %}
+                    <div class="m-card">
+                        <div class="m-card-head">
+                            <div class="user-avatar {{ 'user-avatar-inactive' if not u.activo }}">{{ u.fullname[0].upper() }}</div>
+                            <div class="m-card-head-info">
+                                <p class="user-cell-name">{{ u.fullname }}</p>
+                                <p class="user-cell-email">{{ u.email }}</p>
+                            </div>
+                        </div>
+                        <div class="m-card-meta">
+                            <span class="badge {{ 'badge-admin' if u.role == 'admin' else 'badge-user' }}">{{ u.role|upper }}</span>
+                            <span class="badge {{ 'badge-active' if u.activo else 'badge-inactive' }}">{{ 'Activo' if u.activo else 'Suspendido' }}</span>
+                            {% if u.mfa_enabled %}<span class="badge badge-mfa">MFA</span>{% endif %}
+                            {% if u.pem_fingerprint %}<span class="badge badge-pem">PEM</span>{% endif %}
+                        </div>
+                        <div class="m-card-row">
+                            <span class="m-card-label">Registro</span>
+                            <span>{{ u.created_at.strftime('%d/%m/%Y') }}</span>
+                        </div>
+                        {% if u.id != user.id %}
+                        <div class="m-card-actions">
+                            <button class="btn-action {{ 'btn-deactivate' if u.activo else 'btn-activate' }}" type="button"
+                                onclick="openToggleModal('{{ u.fullname }}', '{{ url_for('admin_user_toggle', target_user_id=u.id) }}', {{ 'true' if u.activo else 'false' }})">
+                                <i data-lucide="{{ 'user-x' if u.activo else 'user-check' }}"></i>
+                                {{ 'Suspender' if u.activo else 'Activar' }}
+                            </button>
+                            {% if u.mfa_enabled or u.pem_fingerprint %}
+                            <button class="btn-action btn-reset" type="button"
+                                onclick="openResetModal('{{ u.fullname }}', '{{ url_for('admin_mfa_reset', target_user_id=u.id) }}')">
+                                <i data-lucide="rotate-ccw"></i> Reset MFA
+                            </button>
+                            {% endif %}
+                            <button class="btn-action btn-role" type="button"
+                                onclick="openRoleModal('{{ u.fullname }}', '{{ url_for('admin_user_role', target_user_id=u.id) }}', '{{ u.role }}')">
+                                <i data-lucide="crown"></i> Rol
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <!-- ═══════════════════════════════════════════
+                 TAB: DISPOSITIVOS
+            ═══════════════════════════════════════════ -->
+            <section id="tab-dispositivos" class="tab-content">
+                <div class="section-head">
+                    <h2><i data-lucide="cpu"></i> Dispositivos IoT</h2>
+                    <div class="search-box">
+                        <i data-lucide="search"></i>
+                        <input type="text" id="search-devices" placeholder="Buscar dispositivo..." autocomplete="off">
+                    </div>
+                </div>
+
+                {% if devices %}
+                <!-- Desktop table -->
+                <div class="tabla-wrapper">
+                    <table class="tabla" id="table-devices">
+                        <thead>
+                            <tr>
+                                <th>Dispositivo</th>
+                                <th>Propietario</th>
+                                <th>Token</th>
+                                <th>Estado</th>
+                                <th>Registro</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for d in devices %}
+                            <tr>
+                                <td>
+                                    <div class="user-cell">
+                                        <div class="a-stat-icon a-stat-icon-blue" style="width:34px;height:34px;border-radius:8px;">
+                                            <i data-lucide="cpu" style="width:16px;height:16px;"></i>
+                                        </div>
+                                        <div class="user-cell-info"><p class="user-cell-name">{{ d.nombre }}</p></div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="user-cell">
+                                        <div class="user-avatar user-avatar-sm">{{ d.user.fullname[0].upper() }}</div>
+                                        <span style="font-weight:600;font-size:.82rem;">{{ d.user.fullname }}</span>
+                                    </div>
+                                </td>
+                                <td><code class="token-cell" title="{{ d.token }}">{{ d.token[:16] }}...</code></td>
+                                <td><span class="badge {{ 'badge-active' if d.activo else 'badge-inactive' }}">{{ 'Activo' if d.activo else 'Inactivo' }}</span></td>
+                                <td style="white-space:nowrap;">{{ d.created_at.strftime('%d/%m/%Y') }}</td>
+                                <td>
+                                    <button class="btn-action {{ 'btn-deactivate' if d.activo else 'btn-activate' }}" type="button"
+                                        onclick="openDeviceModal('{{ d.nombre }}', '{{ d.user.fullname }}', '{{ url_for('admin_device_toggle', disp_id=d.id) }}', {{ 'true' if d.activo else 'false' }})">
+                                        <i data-lucide="{{ 'power-off' if d.activo else 'power' }}"></i>
+                                        {{ 'Desactivar' if d.activo else 'Activar' }}
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Mobile cards -->
+                <div class="mobile-cards" id="mobile-devices">
+                    {% for d in devices %}
+                    <div class="m-card">
+                        <div class="m-card-head">
+                            <div class="a-stat-icon a-stat-icon-blue" style="width:38px;height:38px;border-radius:10px;">
+                                <i data-lucide="cpu" style="width:18px;height:18px;"></i>
+                            </div>
+                            <div class="m-card-head-info">
+                                <p class="user-cell-name">{{ d.nombre }}</p>
+                                <p class="user-cell-email">{{ d.user.fullname }}</p>
+                            </div>
+                            <span class="badge {{ 'badge-active' if d.activo else 'badge-inactive' }}">{{ 'Activo' if d.activo else 'Inactivo' }}</span>
+                        </div>
+                        <div class="m-card-row">
+                            <span class="m-card-label">Token</span>
+                            <code class="token-cell">{{ d.token[:12] }}...</code>
+                        </div>
+                        <div class="m-card-row">
+                            <span class="m-card-label">Registro</span>
+                            <span>{{ d.created_at.strftime('%d/%m/%Y') }}</span>
+                        </div>
+                        <div class="m-card-actions">
+                            <button class="btn-action {{ 'btn-deactivate' if d.activo else 'btn-activate' }}" type="button"
+                                onclick="openDeviceModal('{{ d.nombre }}', '{{ d.user.fullname }}', '{{ url_for('admin_device_toggle', disp_id=d.id) }}', {{ 'true' if d.activo else 'false' }})">
+                                <i data-lucide="{{ 'power-off' if d.activo else 'power' }}"></i>
+                                {{ 'Desactivar' if d.activo else 'Activar' }}
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="tabla-wrapper" style="display:block;">
+                    <div class="empty-state"><i data-lucide="cpu"></i><p>No hay dispositivos registrados.</p></div>
+                </div>
+                {% endif %}
+            </section>
+
+            <!-- ═══════════════════════════════════════════
+                 TAB: ACTIVIDADES
+            ═══════════════════════════════════════════ -->
+            <section id="tab-actividades" class="tab-content">
+                <div class="section-head">
+                    <h2><i data-lucide="clipboard-list"></i> Actividades Recientes</h2>
+                </div>
+
+                {% if activities %}
+                <!-- Desktop -->
+                <div class="tabla-wrapper">
+                    <table class="tabla">
+                        <thead><tr><th>Agricultor</th><th>Labor</th><th>Realizada</th><th>Intervalo</th><th>Proxima</th><th>Notas</th></tr></thead>
+                        <tbody>
+                            {% for a in activities %}
+                            <tr>
+                                <td><div class="user-cell"><div class="user-avatar user-avatar-sm">{{ a.user.fullname[0].upper() }}</div><span style="font-weight:600;font-size:.82rem;">{{ a.user.fullname }}</span></div></td>
+                                <td><strong>{{ a.tipo }}</strong></td>
+                                <td style="white-space:nowrap;">{{ a.fecha_realizada.strftime('%d/%m/%Y') }}</td>
+                                <td style="text-align:center;">{{ a.intervalo_dias }}d</td>
+                                <td style="white-space:nowrap;">{{ a.proxima_fecha.strftime('%d/%m/%Y') }}</td>
+                                <td style="color:#9ca3af;font-size:.78rem;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ a.notas or '—' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Mobile -->
+                <div class="mobile-cards">
+                    {% for a in activities %}
+                    <div class="m-card">
+                        <div class="m-card-head">
+                            <div class="user-avatar user-avatar-sm">{{ a.user.fullname[0].upper() }}</div>
+                            <div class="m-card-head-info">
+                                <p class="user-cell-name" style="font-size:.85rem;">{{ a.user.fullname }}</p>
+                                <p class="user-cell-email">{{ a.tipo }}</p>
+                            </div>
+                        </div>
+                        <div class="m-card-row"><span class="m-card-label">Realizada</span><span>{{ a.fecha_realizada.strftime('%d/%m/%Y') }}</span></div>
+                        <div class="m-card-row"><span class="m-card-label">Proxima</span><span>{{ a.proxima_fecha.strftime('%d/%m/%Y') }}</span></div>
+                        <div class="m-card-row"><span class="m-card-label">Intervalo</span><span>{{ a.intervalo_dias }} dias</span></div>
+                        {% if a.notas %}<div class="m-card-row"><span class="m-card-label">Notas</span><span style="color:#9ca3af;">{{ a.notas }}</span></div>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="tabla-wrapper" style="display:block;"><div class="empty-state"><i data-lucide="clipboard-list"></i><p>No hay actividades registradas.</p></div></div>
+                {% endif %}
+            </section>
+
+            <!-- ═══════════════════════════════════════════
+                 TAB: COSECHAS
+            ═══════════════════════════════════════════ -->
+            <section id="tab-cosechas" class="tab-content">
+                <div class="section-head">
+                    <h2><i data-lucide="wheat"></i> Cosechas Recientes</h2>
+                </div>
+
+                {% if harvests %}
+                <!-- Desktop -->
+                <div class="tabla-wrapper">
+                    <table class="tabla">
+                        <thead><tr><th>Agricultor</th><th>Fecha</th><th>Cantidad</th><th>Notas</th></tr></thead>
+                        <tbody>
+                            {% for c in harvests %}
+                            <tr>
+                                <td><div class="user-cell"><div class="user-avatar user-avatar-sm">{{ c.user.fullname[0].upper() }}</div><span style="font-weight:600;font-size:.82rem;">{{ c.user.fullname }}</span></div></td>
+                                <td style="white-space:nowrap;">{{ c.fecha.strftime('%d/%m/%Y') }}</td>
+                                <td><strong style="color:#2d7a2d;font-size:.95rem;">{{ c.cantidad_kg }} kg</strong></td>
+                                <td style="color:#9ca3af;font-size:.78rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.notas or '—' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Mobile -->
+                <div class="mobile-cards">
+                    {% for c in harvests %}
+                    <div class="m-card">
+                        <div class="m-card-head">
+                            <div class="user-avatar user-avatar-sm">{{ c.user.fullname[0].upper() }}</div>
+                            <div class="m-card-head-info">
+                                <p class="user-cell-name" style="font-size:.85rem;">{{ c.user.fullname }}</p>
+                                <p class="user-cell-email">{{ c.fecha.strftime('%d/%m/%Y') }}</p>
+                            </div>
+                            <strong style="color:#2d7a2d;font-size:1rem;">{{ c.cantidad_kg }} kg</strong>
+                        </div>
+                        {% if c.notas %}<div class="m-card-row"><span class="m-card-label">Notas</span><span style="color:#9ca3af;">{{ c.notas }}</span></div>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="tabla-wrapper" style="display:block;"><div class="empty-state"><i data-lucide="wheat"></i><p>No hay cosechas registradas.</p></div></div>
+                {% endif %}
+            </section>
+
+        </main>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     MODALES
+══════════════════════════════════════════════════ -->
+
+<!-- Modal: Suspender/Activar usuario -->
+<div class="adm-modal-overlay" id="modal-toggle">
+    <div class="adm-modal">
+        <div class="adm-modal-header">
+            <h3><i data-lucide="alert-triangle" class="ic-warn"></i> <span id="modal-toggle-title">Confirmar accion</span></h3>
+            <button class="adm-modal-close" onclick="closeModal('modal-toggle')"><i data-lucide="x"></i></button>
+        </div>
+        <div class="adm-modal-body">
+            <p id="modal-toggle-msg"></p>
+            <div class="modal-user-info">
+                <div class="user-avatar user-avatar-sm" id="modal-toggle-avatar"></div>
+                <span style="font-weight:700;" id="modal-toggle-name"></span>
+            </div>
+        </div>
+        <div class="adm-modal-footer">
+            <button class="adm-modal-btn adm-modal-btn-cancel" onclick="closeModal('modal-toggle')">Cancelar</button>
+            <form id="modal-toggle-form" method="post" style="display:inline;">
+                <button type="submit" class="adm-modal-btn" id="modal-toggle-btn">Confirmar</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Reset MFA -->
+<div class="adm-modal-overlay" id="modal-reset">
+    <div class="adm-modal">
+        <div class="adm-modal-header">
+            <h3><i data-lucide="shield-alert" class="ic-danger"></i> Restablecer seguridad</h3>
+            <button class="adm-modal-close" onclick="closeModal('modal-reset')"><i data-lucide="x"></i></button>
+        </div>
+        <div class="adm-modal-body">
+            <p>Se eliminara la configuracion MFA y la llave PEM de este usuario. Tendra que configurar la seguridad de nuevo.</p>
+            <div class="modal-user-info">
+                <div class="user-avatar user-avatar-sm" id="modal-reset-avatar"></div>
+                <span style="font-weight:700;" id="modal-reset-name"></span>
+            </div>
+        </div>
+        <div class="adm-modal-footer">
+            <button class="adm-modal-btn adm-modal-btn-cancel" onclick="closeModal('modal-reset')">Cancelar</button>
+            <form id="modal-reset-form" method="post" style="display:inline;">
+                <button type="submit" class="adm-modal-btn adm-modal-btn-danger">Restablecer</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Cambiar rol -->
+<div class="adm-modal-overlay" id="modal-role">
+    <div class="adm-modal">
+        <div class="adm-modal-header">
+            <h3><i data-lucide="crown" class="ic-info"></i> Cambiar rol</h3>
+            <button class="adm-modal-close" onclick="closeModal('modal-role')"><i data-lucide="x"></i></button>
+        </div>
+        <div class="adm-modal-body">
+            <p>Selecciona el nuevo rol para este usuario:</p>
+            <div class="modal-user-info">
+                <div class="user-avatar user-avatar-sm" id="modal-role-avatar"></div>
+                <span style="font-weight:700;" id="modal-role-name"></span>
+            </div>
+            <div class="modal-select-group">
+                <label for="modal-role-select">Rol</label>
+                <select id="modal-role-select" name="role">
+                    <option value="user">Usuario</option>
+                    <option value="admin">Administrador</option>
+                </select>
+            </div>
+        </div>
+        <div class="adm-modal-footer">
+            <button class="adm-modal-btn adm-modal-btn-cancel" onclick="closeModal('modal-role')">Cancelar</button>
+            <form id="modal-role-form" method="post" style="display:inline;">
+                <input type="hidden" name="role" id="modal-role-hidden">
+                <button type="submit" class="adm-modal-btn adm-modal-btn-primary">Guardar rol</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Toggle dispositivo -->
+<div class="adm-modal-overlay" id="modal-device">
+    <div class="adm-modal">
+        <div class="adm-modal-header">
+            <h3><i data-lucide="cpu" class="ic-warn"></i> <span id="modal-device-title">Confirmar</span></h3>
+            <button class="adm-modal-close" onclick="closeModal('modal-device')"><i data-lucide="x"></i></button>
+        </div>
+        <div class="adm-modal-body">
+            <p id="modal-device-msg"></p>
+            <div class="modal-user-info">
+                <div class="a-stat-icon a-stat-icon-blue" style="width:32px;height:32px;border-radius:8px;flex-shrink:0;">
+                    <i data-lucide="cpu" style="width:16px;height:16px;"></i>
+                </div>
+                <div>
+                    <p style="font-weight:700;font-size:.88rem;" id="modal-device-name"></p>
+                    <p style="font-size:.75rem;color:#6b7280;" id="modal-device-owner"></p>
+                </div>
+            </div>
+        </div>
+        <div class="adm-modal-footer">
+            <button class="adm-modal-btn adm-modal-btn-cancel" onclick="closeModal('modal-device')">Cancelar</button>
+            <form id="modal-device-form" method="post" style="display:inline;">
+                <button type="submit" class="adm-modal-btn" id="modal-device-btn">Confirmar</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script>
+(function() {
+    lucide.createIcons();
+
+    // ── Tabs ──
+    var tabBtns = document.querySelectorAll('.tab-btn');
+    var tabContents = document.querySelectorAll('.tab-content');
+    tabBtns.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var target = btn.getAttribute('data-tab');
+            tabBtns.forEach(function(b) { b.classList.remove('is-active'); });
+            btn.classList.add('is-active');
+            tabContents.forEach(function(c) { c.classList.toggle('is-active', c.id === 'tab-' + target); });
+        });
+    });
+
+    // ── Search ──
+    function setupSearch(inputId, tableId, mobileId) {
+        var input = document.getElementById(inputId);
+        if (!input) return;
+        input.addEventListener('input', function() {
+            var term = input.value.toLowerCase();
+            var table = document.getElementById(tableId);
+            if (table) {
+                table.querySelectorAll('tbody tr').forEach(function(row) {
+                    row.style.display = row.textContent.toLowerCase().indexOf(term) !== -1 ? '' : 'none';
+                });
+            }
+            var mobile = document.getElementById(mobileId);
+            if (mobile) {
+                mobile.querySelectorAll('.m-card').forEach(function(card) {
+                    card.style.display = card.textContent.toLowerCase().indexOf(term) !== -1 ? '' : 'none';
+                });
+            }
+        });
+    }
+    setupSearch('search-users', 'table-users', 'mobile-users');
+    setupSearch('search-devices', 'table-devices', 'mobile-devices');
+
+    // ── Sidebar drawer ──
+    var sidebar = document.querySelector('.dash-sidebar');
+    var overlay = document.getElementById('js-overlay');
+    var hamburger = document.getElementById('js-hamburger');
+    function openSidebar()  { sidebar.classList.add('is-open'); overlay.classList.add('is-open'); }
+    function closeSidebar() { sidebar.classList.remove('is-open'); overlay.classList.remove('is-open'); }
+    if (hamburger) hamburger.addEventListener('click', openSidebar);
+    if (overlay) overlay.addEventListener('click', closeSidebar);
+
+    // ── Modal helpers ──
+    window.closeModal = function(id) {
+        document.getElementById(id).classList.remove('is-open');
+    };
+
+    // Close on overlay click
+    document.querySelectorAll('.adm-modal-overlay').forEach(function(el) {
+        el.addEventListener('click', function(e) {
+            if (e.target === el) el.classList.remove('is-open');
+        });
+    });
+
+    // Close on Escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.adm-modal-overlay.is-open').forEach(function(el) {
+                el.classList.remove('is-open');
+            });
+        }
+    });
+
+    // ── Toggle user modal ──
+    window.openToggleModal = function(name, action, isActive) {
+        var modal = document.getElementById('modal-toggle');
+        document.getElementById('modal-toggle-title').textContent = isActive ? 'Suspender usuario' : 'Activar usuario';
+        document.getElementById('modal-toggle-msg').textContent = isActive
+            ? 'Este usuario no podra iniciar sesion mientras este suspendido.'
+            : 'Se reactivara el acceso de este usuario a la plataforma.';
+        document.getElementById('modal-toggle-name').textContent = name;
+        document.getElementById('modal-toggle-avatar').textContent = name[0].toUpperCase();
+        document.getElementById('modal-toggle-form').action = action;
+        var btn = document.getElementById('modal-toggle-btn');
+        btn.textContent = isActive ? 'Suspender' : 'Activar';
+        btn.className = 'adm-modal-btn ' + (isActive ? 'adm-modal-btn-danger' : 'adm-modal-btn-primary');
+        modal.classList.add('is-open');
+    };
+
+    // ── Reset MFA modal ──
+    window.openResetModal = function(name, action) {
+        document.getElementById('modal-reset-name').textContent = name;
+        document.getElementById('modal-reset-avatar').textContent = name[0].toUpperCase();
+        document.getElementById('modal-reset-form').action = action;
+        document.getElementById('modal-reset').classList.add('is-open');
+    };
+
+    // ── Role modal ──
+    window.openRoleModal = function(name, action, currentRole) {
+        document.getElementById('modal-role-name').textContent = name;
+        document.getElementById('modal-role-avatar').textContent = name[0].toUpperCase();
+        document.getElementById('modal-role-form').action = action;
+        document.getElementById('modal-role-select').value = currentRole;
+        document.getElementById('modal-role-hidden').value = currentRole;
+        document.getElementById('modal-role').classList.add('is-open');
+    };
+
+    // Sync select → hidden input
+    var roleSelect = document.getElementById('modal-role-select');
+    if (roleSelect) {
+        roleSelect.addEventListener('change', function() {
+            document.getElementById('modal-role-hidden').value = this.value;
+        });
+    }
+
+    // ── Device toggle modal ──
+    window.openDeviceModal = function(deviceName, ownerName, action, isActive) {
+        document.getElementById('modal-device-title').textContent = isActive ? 'Desactivar dispositivo' : 'Activar dispositivo';
+        document.getElementById('modal-device-msg').textContent = isActive
+            ? 'El dispositivo dejara de enviar datos mientras este inactivo.'
+            : 'Se reactivara la recepcion de datos de este dispositivo.';
+        document.getElementById('modal-device-name').textContent = deviceName;
+        document.getElementById('modal-device-owner').textContent = 'Propietario: ' + ownerName;
+        document.getElementById('modal-device-form').action = action;
+        var btn = document.getElementById('modal-device-btn');
+        btn.textContent = isActive ? 'Desactivar' : 'Activar';
+        btn.className = 'adm-modal-btn ' + (isActive ? 'adm-modal-btn-warn' : 'adm-modal-btn-primary');
+        document.getElementById('modal-device').classList.add('is-open');
+    };
+
+}());
+</script>
+</body>
+</html>

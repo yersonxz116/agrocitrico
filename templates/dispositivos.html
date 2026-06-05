@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dispositivos IoT — AgroCitrico</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <style>
+        .page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem;}
+        .page-title{font-size:1.4rem;font-weight:700;color:#1a2e1a;}
+        .btn-primary{display:inline-flex;align-items:center;gap:.4rem;background:#2d7a2d;color:#fff;padding:.55rem 1.1rem;border-radius:.6rem;text-decoration:none;font-size:.875rem;font-weight:600;border:none;cursor:pointer;}
+        .btn-primary:hover{background:#245f24;}
+        .btn-danger{background:#dc2626;color:#fff;padding:.4rem .8rem;border-radius:.5rem;border:none;cursor:pointer;font-size:.8rem;font-weight:600;}
+        .btn-danger:hover{background:#b91c1c;}
+        .btn-toggle{padding:.4rem .8rem;border-radius:.5rem;border:none;cursor:pointer;font-size:.8rem;font-weight:600;}
+        .btn-toggle-off{background:#fef3c7;color:#d97706;}
+        .btn-toggle-off:hover{background:#fde68a;}
+        .btn-toggle-on{background:#dcfce7;color:#16a34a;}
+        .btn-toggle-on:hover{background:#bbf7d0;}
+        .disp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1rem;}
+        .disp-card{background:#fff;border-radius:.9rem;border:1px solid #e5e7eb;box-shadow:0 1px 4px rgba(0,0,0,.06);padding:1.4rem;display:flex;flex-direction:column;gap:.9rem;transition:box-shadow .2s;}
+        .disp-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.1);}
+        .disp-card-header{display:flex;align-items:center;gap:.75rem;}
+        .disp-icon{width:42px;height:42px;border-radius:10px;background:#e6f4e7;color:#2d7a2d;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+        .disp-icon svg{width:20px;height:20px;stroke:currentColor;stroke-width:2;}
+        .disp-info{flex:1;min-width:0;}
+        .disp-name{font-size:.95rem;font-weight:700;color:#1a2e1a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .disp-date{font-size:.72rem;color:#6b7280;margin-top:2px;}
+        .disp-status{font-size:.72rem;font-weight:700;padding:.2rem .6rem;border-radius:9999px;}
+        .disp-status-activo{background:#dcfce7;color:#16a34a;}
+        .disp-status-inactivo{background:#fee2e2;color:#dc2626;}
+        .token-box{background:#f9fafb;border:1px solid #e5e7eb;border-radius:.5rem;padding:.6rem .8rem;display:flex;align-items:center;gap:.5rem;}
+        .token-value{flex:1;font-family:monospace;font-size:.75rem;color:#374151;word-break:break-all;user-select:all;}
+        .btn-copy{background:#eef2ff;color:#4b7bec;border:1px solid #c0cff7;border-radius:.4rem;padding:.3rem .6rem;font-size:.72rem;font-weight:600;cursor:pointer;white-space:nowrap;}
+        .btn-copy:hover{background:#dbeafe;}
+        .disp-actions{display:flex;gap:.5rem;margin-top:auto;}
+        .empty{text-align:center;padding:3rem;color:#888;background:#fff;border-radius:.9rem;border:1px solid #e5e7eb;}
+        .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;align-items:center;justify-content:center;padding:16px;}
+        .modal-overlay.is-open{display:flex;}
+        .modal-box{background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.18);width:100%;max-width:420px;padding:1.5rem 2rem;}
+        .modal-box h3{font-size:1.05rem;font-weight:700;color:#1a2e1a;margin-bottom:1.2rem;display:flex;align-items:center;gap:.5rem;}
+        .modal-box h3 svg{width:20px;height:20px;stroke:#2d7a2d;stroke-width:2;}
+        .form-group{margin-bottom:1rem;}
+        .form-label{display:block;font-size:.82rem;font-weight:600;color:#374151;margin-bottom:.4rem;}
+        .form-control{width:100%;padding:.6rem .85rem;border:1.5px solid #d1d5db;border-radius:.55rem;font-size:.9rem;font-family:inherit;box-sizing:border-box;transition:border .2s;}
+        .form-control:focus{outline:none;border-color:#2d7a2d;box-shadow:0 0 0 3px rgba(45,122,45,.12);}
+        .modal-actions{display:flex;gap:.7rem;justify-content:flex-end;margin-top:1.2rem;}
+        .btn-cancel{background:#f3f4f6;color:#555;padding:.55rem 1.1rem;border-radius:.6rem;border:none;cursor:pointer;font-size:.875rem;font-weight:600;}
+        .btn-cancel:hover{background:#e5e7eb;}
+        .help-box{background:#f0f7f0;border:1px solid #c8e0cc;border-radius:.6rem;padding:1rem;margin-top:.5rem;}
+        .help-box h4{font-size:.82rem;font-weight:700;color:#2d7a2d;margin-bottom:.5rem;}
+        .help-box pre{background:#1a2e1a;color:#a7f3d0;padding:.8rem;border-radius:.4rem;font-size:.72rem;overflow-x:auto;white-space:pre;line-height:1.5;}
+    </style>
+</head>
+<body>
+<div id="js-overlay" class="sidebar-overlay"></div>
+<div class="dash-shell">
+    <aside class="dash-sidebar">
+        <div class="sidebar-top">
+            <a class="sidebar-brand" href="{{ url_for('dashboard') }}">
+                <img src="{{ url_for('static', filename='img/agrocitrico_logo.svg') }}" alt="AgroCitrico">
+            </a>
+        </div>
+        <nav class="sidebar-nav">
+            <p class="sidebar-section-label">Principal</p>
+            <a class="sidebar-link" href="{{ url_for('dashboard') }}">
+                <span class="sidebar-link-icon"><i data-lucide="layout-dashboard"></i></span><span>Panel</span>
+            </a>
+            <p class="sidebar-section-label">Gestion</p>
+            <a class="sidebar-link" href="{{ url_for('actividades') }}">
+                <span class="sidebar-link-icon"><i data-lucide="clipboard-list"></i></span><span>Actividades</span>
+            </a>
+            <a class="sidebar-link" href="{{ url_for('cosechas') }}">
+                <span class="sidebar-link-icon"><i data-lucide="wheat"></i></span><span>Cosechas</span>
+            </a>
+            <a class="sidebar-link is-active" href="{{ url_for('dispositivos') }}">
+                <span class="sidebar-link-icon"><i data-lucide="cpu"></i></span><span>Dispositivos</span>
+            </a>
+            {% if user.is_admin %}
+            <p class="sidebar-section-label">Admin</p>
+            <a class="sidebar-link" href="{{ url_for('admin_dashboard') }}">
+                <span class="sidebar-link-icon"><i data-lucide="shield"></i></span><span>Administración</span>
+            </a>
+            {% endif %}
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                <div class="sidebar-avatar">{{ user.fullname[0].upper() }}</div>
+                <div class="sidebar-user-info">
+                    <p class="sidebar-user-name">{{ user.fullname }}</p>
+                    <p class="sidebar-user-role">Agricultor</p>
+                </div>
+            </div>
+            <form action="{{ url_for('logout') }}" method="post">
+                <button class="sidebar-logout" type="submit"><i data-lucide="log-out"></i></button>
+            </form>
+        </div>
+    </aside>
+
+    <div class="dash-body">
+        <header class="dash-topbar">
+            <div class="topbar-greeting">
+                <button class="topbar-hamburger" id="js-hamburger" aria-label="Abrir menu">
+                    <i data-lucide="menu"></i>
+                </button>
+                <h1>Dispositivos IoT</h1>
+            </div>
+        </header>
+
+        <main class="dash-main">
+            <div class="page-header">
+                <p class="page-title">Mis ESP32 registrados ({{ dispositivos|length }})</p>
+                <button class="btn-primary" id="js-btn-add" type="button">
+                    <i data-lucide="plus"></i> Registrar dispositivo
+                </button>
+            </div>
+
+            {% if dispositivos %}
+            <div class="disp-grid">
+                {% for d in dispositivos %}
+                <div class="disp-card">
+                    <div class="disp-card-header">
+                        <div class="disp-icon"><i data-lucide="cpu"></i></div>
+                        <div class="disp-info">
+                            <p class="disp-name">{{ d.nombre }}</p>
+                            <p class="disp-date">Registrado: {{ d.created_at.strftime('%d/%m/%Y') }}</p>
+                        </div>
+                        <span class="disp-status {{ 'disp-status-activo' if d.activo else 'disp-status-inactivo' }}">
+                            {{ 'Activo' if d.activo else 'Inactivo' }}
+                        </span>
+                    </div>
+                    <div class="token-box">
+                        <span class="token-value">{{ d.token }}</span>
+                        <button class="btn-copy" onclick="navigator.clipboard.writeText('{{ d.token }}')">Copiar</button>
+                    </div>
+                    <div class="disp-actions">
+                        <form action="{{ url_for('dispositivo_toggle', disp_id=d.id) }}" method="post" style="display:inline;">
+                            <button class="btn-toggle {{ 'btn-toggle-off' if d.activo else 'btn-toggle-on' }}" type="submit">
+                                {{ 'Desactivar' if d.activo else 'Activar' }}
+                            </button>
+                        </form>
+                        <form action="{{ url_for('dispositivo_eliminar', disp_id=d.id) }}" method="post" style="display:inline;" onsubmit="return confirm('Eliminar este dispositivo y todas sus lecturas?')">
+                            <button class="btn-danger" type="submit">Eliminar</button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty">
+                <p>No tienes dispositivos registrados.</p>
+                <p style="margin-top:.5rem;font-size:.85rem;">Registra tu primer ESP32 para empezar a recibir datos de sensores.</p>
+            </div>
+            {% endif %}
+
+            <div class="help-box" style="margin-top:1.5rem;">
+                <h4><i data-lucide="info"></i> Como configurar tu ESP32</h4>
+                <p style="font-size:.8rem;color:#374151;margin-bottom:.6rem;">Copia el token de tu dispositivo y ponlo en el firmware del ESP32 en la variable <code>sensorToken</code>:</p>
+                <pre>const char* sensorToken = "TU_TOKEN_AQUI";</pre>
+                <p style="font-size:.78rem;color:#6b7280;margin-top:.5rem;">El ESP32 enviara datos a <code>POST /api/sensores</code> con el header <code>Authorization: Bearer TU_TOKEN</code>.</p>
+            </div>
+        </main>
+    </div>
+</div>
+
+<!-- Modal registrar dispositivo -->
+<div class="modal-overlay" id="js-modal-add">
+    <div class="modal-box">
+        <h3><i data-lucide="cpu"></i> Registrar nuevo dispositivo</h3>
+        <form action="{{ url_for('dispositivo_registrar') }}" method="post">
+            <div class="form-group">
+                <label class="form-label" for="nombre">Nombre del dispositivo</label>
+                <input type="text" id="nombre" name="nombre" class="form-control" placeholder="Ej: ESP32 Parcela Norte" required maxlength="120">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel" id="js-modal-close">Cancelar</button>
+                <button type="submit" class="btn-primary">Registrar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script>
+    lucide.createIcons();
+
+    var modal = document.getElementById('js-modal-add');
+    var btnAdd = document.getElementById('js-btn-add');
+    var btnClose = document.getElementById('js-modal-close');
+
+    btnAdd.addEventListener('click', function() { modal.classList.add('is-open'); });
+    btnClose.addEventListener('click', function() { modal.classList.remove('is-open'); });
+    modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('is-open'); });
+
+    // Sidebar drawer movil
+    var sidebar = document.querySelector('.dash-sidebar');
+    var overlay = document.getElementById('js-overlay');
+    var btn = document.getElementById('js-hamburger');
+    function openSidebar()  { sidebar.classList.add('is-open'); overlay.classList.add('is-open'); }
+    function closeSidebar() { sidebar.classList.remove('is-open'); overlay.classList.remove('is-open'); }
+    if (btn) btn.addEventListener('click', openSidebar);
+    if (overlay) overlay.addEventListener('click', closeSidebar);
+</script>
+</body>
+</html>

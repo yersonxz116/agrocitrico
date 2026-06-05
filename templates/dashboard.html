@@ -38,11 +38,17 @@
                 <span class="sidebar-link-icon"><i data-lucide="wheat"></i></span>
                 <span>Cosechas</span>
             </a>
-            <p class="sidebar-section-label">General</p>
-            <a class="sidebar-link" href="{{ url_for('index') }}">
-                <span class="sidebar-link-icon"><i data-lucide="globe"></i></span>
-                <span>Sitio web</span>
+            <a class="sidebar-link" href="{{ url_for('dispositivos') }}">
+                <span class="sidebar-link-icon"><i data-lucide="cpu"></i></span>
+                <span>Dispositivos</span>
             </a>
+            {% if user.is_admin %}
+            <p class="sidebar-section-label">Admin</p>
+            <a class="sidebar-link" href="{{ url_for('admin_dashboard') }}">
+                <span class="sidebar-link-icon"><i data-lucide="shield"></i></span>
+                <span>Administración</span>
+            </a>
+            {% endif %}
         </nav>
 
         <div class="sidebar-footer">
@@ -71,7 +77,7 @@
                     <i data-lucide="menu"></i>
                 </button>
                 <p class="topbar-date" id="js-date"></p>
-                <h1>Hola, {{ user.fullname.split()[0] }} <span aria-hidden="true">👋</span></h1>
+                <h1>Hola, {{ user.fullname.split()[0] }}</h1>
             </div>
             <div class="topbar-weather" aria-label="Estado del clima">
                 <span id="js-weather-icon" class="weather-icon"><i data-lucide="sun"></i></span>
