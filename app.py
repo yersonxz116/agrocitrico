@@ -470,6 +470,11 @@ def register():
         if not errors:
             user = User(fullname=fullname, email=email)
             user.set_password(password)
+            # El primer usuario registrado queda como admin, los demás como user
+            if User.query.count() == 0:
+                user.role = "admin"
+            else:
+                user.role = "user"
             db.session.add(user)
             try:
                 db.session.commit()
